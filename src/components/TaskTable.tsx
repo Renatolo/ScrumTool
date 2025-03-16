@@ -28,8 +28,8 @@ const TaskTable: React.FC<TaskTableProps> = ({ tasks }) => {
             <TableHead>Title</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Priority</TableHead>
-            <TableHead>Assignee</TableHead>
-            <TableHead>Due Date</TableHead>
+            <TableHead>Assignees</TableHead>
+            <TableHead>Points</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -42,8 +42,8 @@ const TaskTable: React.FC<TaskTableProps> = ({ tasks }) => {
               <TableCell>
                 <Badge variant={getPriorityVariant(task.priority)}>{task.priority}</Badge>
               </TableCell>
-              <TableCell>{task.assignee || 'Unassigned'}</TableCell>
-              <TableCell>{task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No date'}</TableCell>
+              <TableCell>{task.assignees && task.assignees.length > 0 ? `${task.assignees.length} assigned` : 'Unassigned'}</TableCell>
+              <TableCell>{task.points || 0}</TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -54,8 +54,10 @@ const TaskTable: React.FC<TaskTableProps> = ({ tasks }) => {
 
 function getStatusVariant(status: string): "default" | "secondary" | "destructive" | "outline" {
   switch (status.toLowerCase()) {
+    case 'done':
     case 'completed':
       return 'default';
+    case 'in-progress':
     case 'in progress':
       return 'secondary';
     case 'blocked':
