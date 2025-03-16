@@ -1,3 +1,4 @@
+
 import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -62,23 +63,7 @@ const ProjectPage = () => {
         const projectSprints = await fetchProjectSprints(projectId);
         setSprints(projectSprints);
         
-        const today = new Date();
-
-        const active = projectSprints.find(s => 
-          new Date(s.startDate) <= today && new Date(s.endDate) >= today
-        ) || null;
-        
-        const past = projectSprints.filter(s => 
-          new Date(s.endDate) < today
-        );
-        
-        setActiveSprint(active);
-        setPastSprints(past);
-        
-        if (active) {
-          const sprintTasks = await fetchSprintTasks(active.id);
-          setTasks(sprintTasks);
-        }
+        updateSprintCategories(projectSprints);
         
         if (projectData && projectData.members && projectData.members.length > 0) {
           const { data: profiles } = await supabase
@@ -130,12 +115,59 @@ const ProjectPage = () => {
     loadProject();
   }, [projectId, user, toast]);
   
+  // New helper function to categorize sprints
+  const updateSprintCategories = (sprintList: Sprint[]) => {
+    const today = new Date();
+    
+    const active = sprintList.find(s => 
+      new Date(s.startDate) <= today && new Date(s.endDate) >= today
+    ) || null;
+    
+    const past = sprintList.filter(s => 
+      new Date(s.endDate) < today
+    );
+    
+    setActiveSprint(active);
+    setPastSprints(past);
+    
+    if (active) {
+      loadSprintTasks(active.id);
+    }
+  };
+  
+  const loadSprintTasks = async (sprintId: string) => {
+    try {
+      const sprintTasks = await fetchSprintTasks(sprintId);
+      setTasks(sprintTasks);
+    } catch (error) {
+      console.error('Error loading sprint tasks:', error);
+    }
+  };
+  
   const handleSprintCreated = (newSprint: Sprint) => {
-    setSprints(prevSprints => [...prevSprints, newSprint]);
+    // Update the sprints array with the new sprint
+    const updatedSprints = [...sprints, newSprint];
+    setSprints(updatedSprints);
+    
+    // Immediately update the active sprint
+    const today = new Date();
+    if (new Date(newSprint.startDate) <= today && new Date(newSprint.endDate) >= today) {
+      // The new sprint is the active sprint
+      setActiveSprint(newSprint);
+      
+      // Load tasks for this sprint if needed
+      loadSprintTasks(newSprint.id);
+    }
+    
+    // Update past sprints as well
+    updateSprintCategories(updatedSprints);
+    
+    // Update project stats
     setProjectStats(prev => ({
       ...prev,
       totalSprints: prev.totalSprints + 1
     }));
+    
     toast({
       title: 'Success',
       description: 'Sprint created successfully',
@@ -211,23 +243,7 @@ const ProjectPage = () => {
       const projectSprints = await fetchProjectSprints(projectId);
       setSprints(projectSprints);
       
-      const today = new Date();
-
-      const active = projectSprints.find(s => 
-        new Date(s.startDate) <= today && new Date(s.endDate) >= today
-      ) || null;
-      
-      const past = projectSprints.filter(s => 
-        new Date(s.endDate) < today
-      );
-      
-      setActiveSprint(active);
-      setPastSprints(past);
-      
-      if (active) {
-        const sprintTasks = await fetchSprintTasks(active.id);
-        setTasks(sprintTasks);
-      }
+      updateSprintCategories(projectSprints);
     } catch (error) {
       console.error('Error loading project data:', error);
       toast({
