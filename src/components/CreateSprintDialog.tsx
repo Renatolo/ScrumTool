@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Sprint } from "@/types/sprint";
 import { useAuth } from "@/contexts/AuthContext";
-import { createSprint } from "@/lib/supabase/sprints";
+import { createSprint, deleteSprint } from "@/lib/supabase/sprints";
 import { useToast } from "@/hooks/use-toast";
 import { 
   AlertDialog,
@@ -25,6 +25,7 @@ interface CreateSprintDialogProps {
   onCreateSprint: (sprint: Sprint) => void;
   projectId: string;
   hasActiveSprint?: boolean;
+  activeSprintId?: string;
 }
 
 const CreateSprintDialog = ({ 
@@ -32,7 +33,8 @@ const CreateSprintDialog = ({
   onClose, 
   onCreateSprint, 
   projectId, 
-  hasActiveSprint = false 
+  hasActiveSprint = false,
+  activeSprintId = ''
 }: CreateSprintDialogProps) => {
   const [name, setName] = useState("");
   const [startDate, setStartDate] = useState("");
@@ -68,15 +70,23 @@ const CreateSprintDialog = ({
     try {
       setIsSubmitting(true);
       
-      // Create the sprint in Supabase
-      const newSprint = await createSprint({
+      const newSprintData = {
         name,
         startDate,
         endDate,
         userId: user!.id,
         projectId,
         tasks: []
-      });
+      };
+      
+      // If there's an active sprint, delete it first
+      if (hasActiveSprint && activeSprintId) {
+        console.log('Deleting active sprint:', activeSprintId);
+        await deleteSprint(activeSprintId);
+      }
+      
+      // Create the new sprint in Supabase
+      const newSprint = await createSprint(newSprintData);
       
       // Notify parent component of new sprint
       onCreateSprint(newSprint);
@@ -91,7 +101,9 @@ const CreateSprintDialog = ({
       
       toast({
         title: "Success",
-        description: "Sprint created successfully",
+        description: hasActiveSprint 
+          ? "Previous sprint replaced successfully" 
+          : "Sprint created successfully",
       });
     } catch (error) {
       console.error("Error creating sprint:", error);
@@ -172,13 +184,13 @@ const CreateSprintDialog = ({
           <AlertDialogHeader>
             <AlertDialogTitle>Replace Active Sprint?</AlertDialogTitle>
             <AlertDialogDescription>
-              There is already an active sprint for this project. Creating a new sprint will replace the current one as the active sprint. Are you sure you want to continue?
+              There is already an active sprint for this project. Creating a new sprint will replace the current one as the active sprint. The current sprint will be deleted. Are you sure you want to continue?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setShowConfirmDialog(false)}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={createNewSprint}>
-              Create New Sprint
+              Replace Current Sprint
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -122,6 +122,42 @@ export async function deleteSprint(id: string) {
 }
 
 /**
+ * Replaces the current active sprint with a new one
+ * @param currentSprintId - The ID of the current sprint to delete
+ * @param newSprint - The new sprint data to create
+ * @returns The created sprint
+ */
+export async function replaceActiveSprint(currentSprintId: string, newSprint: Omit<Sprint, 'id'> & { userId: string }) {
+  // Start a transaction to ensure both operations succeed or fail together
+  const { data, error } = await supabase.rpc('replace_active_sprint', {
+    current_sprint_id: currentSprintId,
+    new_sprint_name: newSprint.name,
+    new_sprint_start_date: newSprint.startDate,
+    new_sprint_end_date: newSprint.endDate,
+    user_id: newSprint.userId,
+    project_id: newSprint.projectId
+  });
+
+  if (error) {
+    console.error('Error replacing sprint:', error);
+    
+    // Fallback to manual delete and create if RPC is not available
+    await deleteSprint(currentSprintId);
+    return createSprint(newSprint);
+  }
+  
+  // Map the response back to our application schema
+  return {
+    id: data.id,
+    name: data.name,
+    startDate: data.start_date || new Date().toISOString(),
+    endDate: data.end_date || new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+    tasks: [],
+    projectId: data.project_id
+  } as Sprint;
+}
+
+/**
  * Fetches sprints for a specific project
  * @param projectId - The project's ID
  * @returns Array of sprints

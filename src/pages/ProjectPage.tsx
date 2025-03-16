@@ -55,18 +55,15 @@ const ProjectPage = () => {
       
       try {
         setLoading(true);
-        // Fetch all projects and find the one matching the ID
         const projectsData = await fetchProjects(user.id);
         const projectData = projectsData.find(p => p.id === projectId);
         setProject(projectData || null);
         
-        // Fetch sprints that belong to this project directly
         const projectSprints = await fetchProjectSprints(projectId);
         setSprints(projectSprints);
         
         const today = new Date();
 
-        // Separate active and past sprints
         const active = projectSprints.find(s => 
           new Date(s.startDate) <= today && new Date(s.endDate) >= today
         ) || null;
@@ -78,13 +75,11 @@ const ProjectPage = () => {
         setActiveSprint(active);
         setPastSprints(past);
         
-        // Fetch tasks for this project
         if (active) {
           const sprintTasks = await fetchSprintTasks(active.id);
           setTasks(sprintTasks);
         }
         
-        // Fetch user profiles if there are members
         if (projectData && projectData.members && projectData.members.length > 0) {
           const { data: profiles } = await supabase
             .from('profiles')
@@ -102,7 +97,6 @@ const ProjectPage = () => {
             setUserProfiles(userMap);
           }
           
-          // Calculate project stats
           const allProjectTasks = await supabase
             .from('tasks')
             .select('*')
@@ -162,19 +156,16 @@ const ProjectPage = () => {
     try {
       setIsDeleting(true);
       
-      // Delete all tasks associated with this project
       await supabase
         .from('tasks')
         .delete()
         .eq('project_id', projectId);
       
-      // Delete all sprints associated with this project
       await supabase
         .from('sprints')
         .delete()
         .eq('project_id', projectId);
       
-      // Finally delete the project
       await supabase
         .from('projects')
         .delete()
@@ -185,7 +176,6 @@ const ProjectPage = () => {
         description: 'Project and all associated items deleted successfully',
       });
       
-      // Navigate back to dashboard
       navigate('/dashboard');
     } catch (error) {
       console.error('Error deleting project:', error);
@@ -201,7 +191,6 @@ const ProjectPage = () => {
 
   const handleRefresh = () => {
     if (projectId && user) {
-      // Reload project data
       loadProject();
     }
   };
@@ -215,18 +204,15 @@ const ProjectPage = () => {
     
     try {
       setLoading(true);
-      // Fetch all projects and find the one matching the ID
       const projectsData = await fetchProjects(user.id);
       const projectData = projectsData.find(p => p.id === projectId);
       setProject(projectData || null);
       
-      // Fetch sprints that belong to this project directly
       const projectSprints = await fetchProjectSprints(projectId);
       setSprints(projectSprints);
       
       const today = new Date();
 
-      // Separate active and past sprints
       const active = projectSprints.find(s => 
         new Date(s.startDate) <= today && new Date(s.endDate) >= today
       ) || null;
@@ -238,7 +224,6 @@ const ProjectPage = () => {
       setActiveSprint(active);
       setPastSprints(past);
       
-      // Fetch tasks for this project
       if (active) {
         const sprintTasks = await fetchSprintTasks(active.id);
         setTasks(sprintTasks);
@@ -298,7 +283,6 @@ const ProjectPage = () => {
       )}
       
       <div className="grid md:grid-cols-3 gap-6">
-        {/* Left column - Active Sprint and Product Backlog */}
         <div className="md:col-span-2">
           <Card className="mb-6">
             <CardContent className="p-6">
@@ -329,12 +313,10 @@ const ProjectPage = () => {
             </CardContent>
           </Card>
           
-          {/* Product Backlog */}
           <div className="mb-6">
             {projectId && <ProductBacklog projectId={projectId} onRefresh={handleRefresh} />}
           </div>
           
-          {/* Past Sprints */}
           <Card>
             <CardContent className="p-6">
               <h2 className="text-xl font-semibold mb-2">Past Sprints</h2>
@@ -351,7 +333,6 @@ const ProjectPage = () => {
           </Card>
         </div>
         
-        {/* Right column - Team Members & Stats */}
         <div>
           <Card className="mb-6">
             <CardContent className="p-6">
@@ -443,6 +424,7 @@ const ProjectPage = () => {
           onCreateSprint={handleSprintCreated}
           projectId={projectId}
           hasActiveSprint={activeSprint !== null}
+          activeSprintId={activeSprint?.id}
         />
       )}
     </div>
