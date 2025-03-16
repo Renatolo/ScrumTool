@@ -34,6 +34,18 @@ export async function fetchSprints(userId: string) {
  * Creates a new sprint
  */
 export async function createSprint(sprint: Omit<Sprint, 'id'> & { userId: string }) {
+
+  // **Batch delete all existing sprints** for this project
+  const { error: deleteError } = await supabase
+    .from('sprints')
+    .delete()
+    .eq('project_id', sprint.projectId);
+
+  if (deleteError) {
+    console.error('Error deleting existing sprints:', deleteError);
+    throw deleteError;
+  }
+  
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -56,16 +68,7 @@ export async function createSprint(sprint: Omit<Sprint, 'id'> & { userId: string
     project_id: sprint.projectId
   };
 
-  // **Batch delete all existing sprints** for this project
-  const { error: deleteError } = await supabase
-    .from('sprints')
-    .delete()
-    .eq('project_id', sprint.projectId);
-
-  if (deleteError) {
-    console.error('Error deleting existing sprints:', deleteError);
-    throw deleteError;
-  }
+  
 
   // Insert new sprint
   const { data, error } = await supabase
