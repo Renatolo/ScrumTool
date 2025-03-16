@@ -1,3 +1,4 @@
+
 import { supabase } from './client';
 import { type Sprint } from '@/types/sprint';
 
@@ -63,7 +64,8 @@ export async function createSprint(sprint: Omit<Sprint, 'id'> & { userId: string
     project_id: sprint.projectId
   };
 
-  // Batch delete all existing sprints for this project
+  // Delete all existing sprints for this project first
+  console.log(`Deleting existing sprints for project: ${sprint.projectId}`);
   const { error: deleteError } = await supabase
     .from('sprints')
     .delete()
@@ -75,6 +77,7 @@ export async function createSprint(sprint: Omit<Sprint, 'id'> & { userId: string
   }
 
   // Insert new sprint
+  console.log('Creating new sprint:', dbSprint);
   const { data, error } = await supabase
     .from('sprints')
     .insert(dbSprint)
@@ -90,6 +93,7 @@ export async function createSprint(sprint: Omit<Sprint, 'id'> & { userId: string
     throw new Error('Sprint creation failed unexpectedly');
   }
 
+  console.log('Sprint created successfully:', data);
   return {
     id: data.id,
     name: data.name,
@@ -185,14 +189,7 @@ export async function replaceActiveSprint(currentSprintId: string, newSprint: Om
   console.log('Replacing active sprint:', currentSprintId, 'with new sprint');
 
   try {
-    // First: Delete the current sprint
-    const deleteResult = await deleteSprint(currentSprintId);
-
-    if (!deleteResult) {
-      throw new Error('Failed to delete current sprint');
-    }
-
-    // Second: Create the new sprint
+    // We can now use createSprint directly since it will delete all existing sprints
     return await createSprint(newSprint);
   } catch (error) {
     console.error('Error in replaceActiveSprint:', error);

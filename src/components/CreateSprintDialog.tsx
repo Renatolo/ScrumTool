@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Sprint } from "@/types/sprint";
 import { useAuth } from "@/contexts/AuthContext";
-import { createSprint, deleteSprint, replaceActiveSprint } from "@/lib/supabase/sprints";
+import { createSprint } from "@/lib/supabase/sprints";
 import { useToast } from "@/hooks/use-toast";
 import { 
   AlertDialog,
@@ -115,16 +115,11 @@ const CreateSprintDialog = ({
         tasks: []
       };
       
-      let newSprint: Sprint;
+      console.log('Creating new sprint with data:', newSprintData);
       
-      // If there's an active sprint, use replaceActiveSprint to handle the replacement
-      if (hasActiveSprint && activeSprintId) {
-        console.log('Replacing active sprint:', activeSprintId);
-        newSprint = await replaceActiveSprint(activeSprintId, newSprintData);
-      } else {
-        // Create the new sprint in Supabase
-        newSprint = await createSprint(newSprintData);
-      }
+      // We don't need separate logic for replacing sprints anymore
+      // since createSprint now handles the deletion of existing sprints
+      const newSprint = await createSprint(newSprintData);
       
       // Notify parent component of new sprint
       onCreateSprint(newSprint);
@@ -147,7 +142,7 @@ const CreateSprintDialog = ({
       console.error("Error creating sprint:", error);
       toast({
         title: "Error",
-        description: "Failed to create sprint. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to create sprint. Please try again.",
         variant: "destructive",
       });
     } finally {
