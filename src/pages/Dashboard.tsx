@@ -16,7 +16,7 @@ import { supabase } from "@/lib/supabase/client";
 const Dashboard = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("select");
+  const [activeTab, setActiveTab] = useState("create");
   const { user } = useAuth();
   const [projectName, setProjectName] = useState("");
   const [projectDescription, setProjectDescription] = useState("");

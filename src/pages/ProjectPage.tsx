@@ -1,4 +1,3 @@
-
 import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -443,6 +442,7 @@ const ProjectPage = () => {
           onClose={() => setIsCreateSprintOpen(false)} 
           onCreateSprint={handleSprintCreated}
           projectId={projectId}
+          hasActiveSprint={activeSprint !== null}
         />
       )}
     </div>
