@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -6,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Sprint } from "@/types/sprint";
 import { useAuth } from "@/contexts/AuthContext";
-import { createSprint, deleteSprint } from "@/lib/supabase/sprints";
+import { createSprint, replaceActiveSprint } from "@/lib/supabase/sprints";
 import { useToast } from "@/hooks/use-toast";
 import { 
   AlertDialog,
@@ -79,14 +78,16 @@ const CreateSprintDialog = ({
         tasks: []
       };
       
-      // If there's an active sprint, delete it first
-      if (hasActiveSprint && activeSprintId) {
-        console.log('Deleting active sprint:', activeSprintId);
-        await deleteSprint(activeSprintId);
-      }
+      let newSprint;
       
-      // Create the new sprint in Supabase
-      const newSprint = await createSprint(newSprintData);
+      // If there's an active sprint, use the replaceActiveSprint function
+      if (hasActiveSprint && activeSprintId) {
+        console.log('Replacing active sprint:', activeSprintId);
+        newSprint = await replaceActiveSprint(activeSprintId, newSprintData);
+      } else {
+        // Otherwise just create a new sprint
+        newSprint = await createSprint(newSprintData);
+      }
       
       // Notify parent component of new sprint
       onCreateSprint(newSprint);
