@@ -1,79 +1,43 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Plus, LogOut, Home, Trash2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Card } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Project } from "@/types/user";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/lib/supabase/client";
-import { Project } from "@/types/user";
+import { createProject, deleteProject, fetchProjects } from "@/lib/supabase/projects";
+import { AlertCircle, Plus, Users, Home, LogOut } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import LogoutButton from "@/components/LogoutButton";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { createProject, deleteProject } from "@/lib/supabase/projects";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { supabase } from "@/lib/supabase/client";
 
 const Dashboard = () => {
   const [projects, setProjects] = useState<Project[]>([]);
-  const [userNames, setUserNames] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("select");
+  const { user } = useAuth();
   const [projectName, setProjectName] = useState("");
   const [projectDescription, setProjectDescription] = useState("");
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [projectToDelete, setProjectToDelete] = useState<string | null>(null);
+  const [joinCode, setJoinCode] = useState("");
+  const [joinError, setJoinError] = useState("");
   const { toast } = useToast();
-  const { user } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchProjects = async () => {
+    const fetchUserProjects = async () => {
       if (!user) return;
       
       try {
         setIsLoading(true);
-        
-        const { data, error } = await supabase
-          .from('projects')
-          .select('*');
-          
-        if (error) throw error;
-        
-        setProjects(data as Project[] || []);
-
-        const userIds = new Set<string>();
-        data?.forEach(project => {
-          if (project.user_id) userIds.add(project.user_id);
-        });
-
-        if (userIds.size > 0) {
-          const { data: profiles, error: profilesError } = await supabase
-            .from('profiles')
-            .select('id, name')
-            .in('id', Array.from(userIds));
-
-          if (!profilesError && profiles) {
-            const nameMap: Record<string, string> = {};
-            profiles.forEach(profile => {
-              nameMap[profile.id] = profile.name || 'Unknown User';
-            });
-            setUserNames(nameMap);
-          }
-        }
+        const userProjects = await fetchProjects(user.id);
+        setProjects(userProjects);
       } catch (error) {
-        console.error('Failed to load projects', error);
+        console.error('Error loading projects:', error);
         toast({
           title: 'Error',
-          description: 'Failed to load projects',
+          description: 'Failed to load your projects',
           variant: 'destructive',
         });
       } finally {
@@ -81,20 +45,12 @@ const Dashboard = () => {
       }
     };
     
-    if (user) {
-      fetchProjects();
-    }
+    fetchUserProjects();
   }, [user, toast]);
 
-  const handleViewProject = (projectId: string) => {
-    navigate(`/project/${projectId}`);
-  };
-
-  const getUserName = (userId: string) => {
-    return userNames[userId] || userId.substring(0, 8) + "...";
-  };
-
-  const handleCreateProject = async () => {
+  const handleCreateProject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
     if (!user) return;
     
     if (!projectName.trim()) {
@@ -107,6 +63,7 @@ const Dashboard = () => {
     }
     
     try {
+      // Generate a unique project code
       const projectCode = Math.random().toString(36).substring(2, 8).toUpperCase();
       const ts = new Date().toISOString();
       
@@ -122,181 +79,137 @@ const Dashboard = () => {
       toast({
         title: 'Success',
         description: 'Project created successfully',
-        duration: 3000,
       });
       
-      setProjects([...projects, newProject]);
-      
-      setProjectName("");
-      setProjectDescription("");
-      setIsCreateDialogOpen(false);
+      // Navigate to the project
+      navigate(`/project/${newProject.id}`);
     } catch (error) {
       console.error('Error creating project:', error);
       toast({
         title: 'Error',
         description: 'Failed to create project',
         variant: 'destructive',
-        duration: 5000,
       });
     }
   };
 
-  const handleDeleteConfirm = async (projectId: string) => {
-    setIsDeleting(true);
-    setProjectToDelete(projectId);
+  const handleJoinProject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setJoinError("");
+    
+    if (!user) return;
+    
+    if (!joinCode.trim()) {
+      setJoinError("Project code cannot be empty");
+      return;
+    }
     
     try {
-      await deleteProject(projectId);
+      const { data, error } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('code', joinCode.trim())
+        .single();
       
-      setProjects(projects.filter(project => project.id !== projectId));
+      if (error || !data) {
+        throw new Error('Project not found');
+      }
+      
+      // Update the project's members array to include the current user
+      const updatedMembers = [...(data.members || [])];
+      if (!updatedMembers.includes(user.id)) {
+        updatedMembers.push(user.id);
+      }
+      
+      const { error: updateError } = await supabase
+        .from('projects')
+        .update({ members: updatedMembers })
+        .eq('id', data.id);
+      
+      if (updateError) {
+        throw updateError;
+      }
       
       toast({
-        title: "Success",
-        description: "Project deleted successfully",
+        title: 'Success',
+        description: `You've joined ${data.name}`,
       });
+      
+      // Navigate to the project
+      navigate(`/project/${data.id}`);
     } catch (error) {
-      console.error("Error deleting project:", error);
-      toast({
-        title: "Error",
-        description: "Failed to delete project",
-        variant: "destructive",
-      });
-    } finally {
-      setIsDeleting(false);
-      setProjectToDelete(null);
+      console.error('Error joining project:', error);
+      setJoinError("Invalid project code or project not found");
     }
+  };
+
+  const handleSelectProject = (projectId: string) => {
+    navigate(`/project/${projectId}`);
   };
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-secondary to-background">
+      <div className="flex h-screen items-center justify-center">
         <div className="text-center">
           <div className="animate-spin h-10 w-10 border-4 border-primary border-t-transparent rounded-full mb-4 mx-auto"></div>
-          <p className="text-muted-foreground">Loading projects...</p>
+          <p className="text-muted-foreground">Loading your projects...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-secondary to-background p-8">
-      <div className="max-w-6xl mx-auto space-y-8">
-        <header className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold">Projects Dashboard</h1>
-          <div className="flex space-x-2">
-            <Button variant="outline" onClick={() => navigate('/')}>
-              <Home className="h-4 w-4 mr-2" />
-              Home
-            </Button>
-            <LogoutButton variant="outline" />
-          </div>
-        </header>
-
-        <div className="bg-card rounded-lg shadow-lg overflow-hidden">
-          <div className="p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">All Projects</h2>
-              <Button 
-                variant="default" 
-                onClick={() => setIsCreateDialogOpen(true)}
-                className="flex items-center"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Create Project
-              </Button>
-            </div>
-            {projects.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left py-3 px-4">Project Name</th>
-                      <th className="text-left py-3 px-4">Description</th>
-                      <th className="text-left py-3 px-4">Owner</th>
-                      <th className="text-left py-3 px-4">Members</th>
-                      <th className="text-right py-3 px-4">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {projects.map((project) => (
-                      <tr key={project.id} className="border-b hover:bg-muted/50">
-                        <td className="py-3 px-4 font-medium">{project.name}</td>
-                        <td className="py-3 px-4 text-muted-foreground">
-                          {project.description || "No description"}
-                        </td>
-                        <td className="py-3 px-4">
-                          {getUserName(project.user_id || '')}
-                        </td>
-                        <td className="py-3 px-4">
-                          {project.members ? project.members.length : 0} members
-                        </td>
-                        <td className="py-3 px-4 text-right flex justify-end gap-2">
-                          <Button 
-                            variant="default" 
-                            size="sm"
-                            onClick={() => handleViewProject(project.id)}
-                          >
-                            View
-                          </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button 
-                                variant="destructive" 
-                                size="sm"
-                                disabled={isDeleting && projectToDelete === project.id}
-                              >
-                                <Trash2 size={16} />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Delete Project</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Are you sure you want to delete "{project.name}"? 
-                                  This will permanently remove the project and all associated sprints and tasks.
-                                  This action cannot be undone.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => handleDeleteConfirm(project.id)}
-                                  className="bg-red-600 hover:bg-red-700"
-                                >
-                                  {isDeleting && projectToDelete === project.id ? 'Deleting...' : 'Delete'}
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="text-center py-12 border border-dashed rounded-lg">
-                <p className="text-muted-foreground mb-4">No projects found.</p>
-                <Button onClick={() => setIsCreateDialogOpen(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Your First Project
-                </Button>
-              </div>
-            )}
+    <div className="max-w-4xl mx-auto p-6">
+      <div className="flex justify-between items-center mb-12">
+        <h1 className="text-3xl font-bold">Your Projects</h1>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => navigate('/')}>
+            <Home className="h-4 w-4 mr-2" />
+            Home
+          </Button>
+          <LogoutButton variant="outline">
+            <LogOut className="h-4 w-4 mr-2" />
+            Logout
+          </LogoutButton>
+        </div>
+      </div>
+      
+      {projects.length > 0 && (
+        <div className="mb-10">
+          <h2 className="text-xl font-semibold mb-6">Select a Project</h2>
+          <div className="grid gap-6 sm:grid-cols-2">
+            {projects.map((project) => (
+              <Card key={project.id} className="p-6 hover:shadow-md transition-shadow cursor-pointer" 
+                onClick={() => handleSelectProject(project.id)}>
+                <h3 className="text-xl font-semibold mb-1">{project.name}</h3>
+                <div className="flex items-center text-muted-foreground mb-3 text-sm">
+                  <Users className="h-4 w-4 mr-1" />
+                  <span>{project.members?.length || 1} member{project.members?.length !== 1 ? 's' : ''}</span>
+                </div>
+                <p className="text-muted-foreground mb-4 text-sm">
+                  {project.description || "No description provided"}
+                </p>
+                <Button variant="outline" className="w-full">Select Project</Button>
+              </Card>
+            ))}
           </div>
         </div>
-
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Create New Project</DialogTitle>
-              <DialogDescription>
-                Create a new project and start collaborating with your team.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
+      )}
+      
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-8">
+        <TabsList className="w-full grid grid-cols-2 mb-6">
+          <TabsTrigger value="create">Create Project</TabsTrigger>
+          <TabsTrigger value="join">Join Project</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="create">
+          <Card className="p-6">
+            <h2 className="text-xl font-bold mb-2">Create a New Project</h2>
+            <p className="text-muted-foreground mb-6">Start a new project and invite team members to collaborate</p>
+            
+            <form onSubmit={handleCreateProject} className="space-y-4">
               <div className="space-y-2">
-                <label htmlFor="name" className="text-sm font-medium">
+                <label htmlFor="name" className="block font-medium">
                   Project Name
                 </label>
                 <Input
@@ -308,7 +221,7 @@ const Dashboard = () => {
                 />
               </div>
               <div className="space-y-2">
-                <label htmlFor="description" className="text-sm font-medium">
+                <label htmlFor="description" className="block font-medium">
                   Description (Optional)
                 </label>
                 <Input
@@ -318,19 +231,52 @@ const Dashboard = () => {
                   placeholder="A brief description of your project"
                 />
               </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleCreateProject}>
+              <Button type="submit" className="w-full mt-4">
                 <Plus className="h-4 w-4 mr-2" />
                 Create Project
               </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
+            </form>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="join">
+          <Card className="p-6">
+            <h2 className="text-xl font-bold mb-2">Join an Existing Project</h2>
+            <p className="text-muted-foreground mb-6">
+              Enter the project code provided by the project owner
+            </p>
+            
+            <form onSubmit={handleJoinProject} className="space-y-4">
+              <div className="space-y-2">
+                <label htmlFor="code" className="block font-medium">
+                  Project Code
+                </label>
+                <Input
+                  id="code"
+                  value={joinCode}
+                  onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                  placeholder="ABC123"
+                  className="uppercase"
+                  maxLength={6}
+                  required
+                />
+              </div>
+              
+              {joinError && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Error</AlertTitle>
+                  <AlertDescription>{joinError}</AlertDescription>
+                </Alert>
+              )}
+              
+              <Button type="submit" className="w-full">
+                Join Project
+              </Button>
+            </form>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
