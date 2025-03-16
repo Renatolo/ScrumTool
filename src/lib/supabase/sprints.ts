@@ -11,9 +11,8 @@ export async function fetchSprints(userId: string) {
   console.time('fetchSprints');
   const { data, error } = await supabase
     .from('sprints')
-    .select('id, name, start_date, end_date, project_id')
-    .eq('user_id', userId)
-    .order('start_date', { ascending: false });
+    .select('*')
+    .eq('user_id', userId);
   
   if (error) {
     console.error('Error fetching sprints:', error);
@@ -131,7 +130,7 @@ export async function fetchProjectSprints(projectId: string) {
   console.time('fetchProjectSprints');
   console.log('Fetching sprints for project:', projectId);
   
-  // Use more efficient query with fewer columns
+  // Use more efficient query with fewer columns if possible
   const { data, error } = await supabase
     .from('sprints')
     .select('id, name, start_date, end_date, project_id')
