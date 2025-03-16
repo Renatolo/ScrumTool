@@ -55,9 +55,16 @@ const CreateSprintDialog = ({
     
     const start = new Date(startDate);
     const end = new Date(endDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Set to beginning of today
     
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
       setDateError("Invalid date format");
+      return false;
+    }
+    
+    if (start < today) {
+      setDateError("Start date must be today or a future date");
       return false;
     }
     

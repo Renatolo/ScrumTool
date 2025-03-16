@@ -46,6 +46,13 @@ export async function createSprint(sprint: Omit<Sprint, 'id'> & { userId: string
   // Validate dates for coherence
   const startDate = new Date(sprint.startDate);
   const endDate = new Date(sprint.endDate);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Set to beginning of today
+  
+  // Check that start date is today or in the future
+  if (startDate < today) {
+    throw new Error('Start date must be today or a future date');
+  }
   
   if (endDate < startDate) {
     throw new Error('End date must be after start date');
@@ -60,17 +67,15 @@ export async function createSprint(sprint: Omit<Sprint, 'id'> & { userId: string
     project_id: sprint.projectId
   };
   
-  // Check for existing sprints that overlap with the new one for this project
+  // Check for ANY existing sprint for this project and delete it
   const { data: existingSprints } = await supabase
     .from('sprints')
     .select('id')
-    .eq('project_id', sprint.projectId)
-    .lte('start_date', sprint.endDate)
-    .gte('end_date', sprint.startDate);
+    .eq('project_id', sprint.projectId);
   
   if (existingSprints && existingSprints.length > 0) {
-    console.log('Found overlapping sprints:', existingSprints);
-    // Delete the overlapping sprints
+    console.log('Found existing sprint(s) for this project:', existingSprints);
+    // Delete all existing sprints for this project
     for (const existingSprint of existingSprints) {
       await deleteSprint(existingSprint.id);
     }
