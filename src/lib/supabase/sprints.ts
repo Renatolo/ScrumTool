@@ -1,3 +1,4 @@
+
 import { supabase } from './client';
 import { type Sprint } from '@/types/sprint';
 
@@ -7,6 +8,7 @@ import { type Sprint } from '@/types/sprint';
  * @returns Array of sprints
  */
 export async function fetchSprints(userId: string) {
+  console.time('fetchSprints');
   const { data, error } = await supabase
     .from('sprints')
     .select('*')
@@ -31,6 +33,7 @@ export async function fetchSprints(userId: string) {
     projectId: sprint.project_id
   }));
   
+  console.timeEnd('fetchSprints');
   return mappedSprints as Sprint[];
 }
 
@@ -124,10 +127,15 @@ export async function deleteSprint(id: string) {
  * @returns Array of sprints
  */
 export async function fetchProjectSprints(projectId: string) {
+  console.time('fetchProjectSprints');
+  console.log('Fetching sprints for project:', projectId);
+  
+  // Use more efficient query with fewer columns if possible
   const { data, error } = await supabase
     .from('sprints')
-    .select('*')
-    .eq('project_id', projectId);
+    .select('id, name, start_date, end_date, project_id')
+    .eq('project_id', projectId)
+    .order('start_date', { ascending: false });
   
   if (error) {
     console.error('Error fetching project sprints:', error);
@@ -148,5 +156,6 @@ export async function fetchProjectSprints(projectId: string) {
     projectId: sprint.project_id
   }));
   
+  console.timeEnd('fetchProjectSprints');
   return mappedSprints as Sprint[];
 }

@@ -102,17 +102,20 @@ const CreateSprintDialog = ({
       });
     } finally {
       setIsSubmitting(false);
+      // Make sure to close the confirmation dialog too
       setShowConfirmDialog(false);
     }
   };
 
-  const handleConfirmCreateSprint = () => {
-    createNewSprint();
+  const handleCloseDialog = () => {
+    // Reset the form state
+    setShowConfirmDialog(false);
+    onClose();
   };
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onClose}>
+      <Dialog open={open} onOpenChange={handleCloseDialog}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Create New Sprint</DialogTitle>
@@ -152,7 +155,7 @@ const CreateSprintDialog = ({
               />
             </div>
             <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
+              <Button type="button" variant="outline" onClick={handleCloseDialog} disabled={isSubmitting}>
                 Cancel
               </Button>
               <Button type="submit" disabled={isSubmitting}>
@@ -173,8 +176,8 @@ const CreateSprintDialog = ({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmCreateSprint}>
+            <AlertDialogCancel onClick={() => setShowConfirmDialog(false)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={createNewSprint}>
               Create New Sprint
             </AlertDialogAction>
           </AlertDialogFooter>
