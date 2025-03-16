@@ -1,5 +1,6 @@
+
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/router';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchProjectSprints } from '@/lib/supabase/sprints';
 import { fetchTasks } from '@/lib/supabase/tasks';
@@ -23,30 +24,34 @@ import {
 } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
+import { CalendarIcon } from "lucide-react"
 import CreateSprintDialog from '@/components/CreateSprintDialog';
-import TaskTable from '@/components/TaskTable';
 import LogoutButton from '@/components/LogoutButton';
 
 const Dashboard = () => {
-  const { user, signOut } = useAuth();
-  const router = useRouter();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const params = useParams();
+  const location = useLocation();
   const [sprints, setSprints] = useState<Sprint[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isCreateSprintDialogOpen, setIsCreateSprintDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const projectId = router.query.projectId as string;
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Get projectId from URL params or search params
+  const projectId = params.projectId || new URLSearchParams(location.search).get('projectId') || '';
 
   useEffect(() => {
     if (!user) {
-      router.push('/login');
+      navigate('/login');
       return;
     }
 
     if (projectId) {
       fetchData();
     }
-  }, [user, router, projectId]);
+  }, [user, navigate, projectId]);
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -156,7 +161,53 @@ const Dashboard = () => {
         {isLoading ? (
           <p>Loading tasks...</p>
         ) : (
-          <TaskTable tasks={tasks} />
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="bg-muted/50">
+                  <th className="px-4 py-2 text-left font-medium">Title</th>
+                  <th className="px-4 py-2 text-left font-medium">Status</th>
+                  <th className="px-4 py-2 text-left font-medium">Priority</th>
+                  <th className="px-4 py-2 text-left font-medium">Points</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tasks.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-2 text-center text-muted-foreground">
+                      No tasks found
+                    </td>
+                  </tr>
+                ) : (
+                  tasks.map((task) => (
+                    <tr key={task.id} className="border-b border-border/50 hover:bg-muted/30">
+                      <td className="px-4 py-2">{task.title}</td>
+                      <td className="px-4 py-2">
+                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                          task.status === 'todo' ? 'bg-blue-100 text-blue-800' : 
+                          task.status === 'in-progress' ? 'bg-yellow-100 text-yellow-800' : 
+                          task.status === 'done' ? 'bg-green-100 text-green-800' : 
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {task.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2">
+                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                          task.priority === 'high' ? 'bg-red-100 text-red-800' : 
+                          task.priority === 'medium' ? 'bg-orange-100 text-orange-800' : 
+                          'bg-green-100 text-green-800'
+                        }`}>
+                          {task.priority}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2">{task.points || 0}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
@@ -171,7 +222,5 @@ const Dashboard = () => {
     </div>
   );
 };
-
-import { CalendarIcon } from "@radix-ui/react-icons"
 
 export default Dashboard;
