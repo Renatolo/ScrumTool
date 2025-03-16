@@ -4,9 +4,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Task } from "@/types/task";
 import { Sprint } from "@/types/sprint";
-import { fetchProductBacklog, updateTask } from "@/lib/supabase/tasks";
+import { fetchProductBacklog, updateTask, deleteTask } from "@/lib/supabase/tasks";
 import { fetchProjectSprints } from "@/lib/supabase/sprints";
-import { Plus, ListChecks, Edit, ArrowRight } from "lucide-react";
+import { Plus, ListChecks, Edit, ArrowRight, Trash } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -18,6 +18,7 @@ import {
 import CreateTaskDialog from "./CreateTaskDialog";
 import EditTaskDialog from "./EditTaskDialog";
 import MoveTaskDialog from "./MoveTaskDialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface ProductBacklogProps {
   projectId: string;
@@ -105,6 +106,29 @@ const ProductBacklog = ({ projectId, onRefresh }: ProductBacklogProps) => {
     setShowMoveTaskDialog(true);
   };
 
+  const handleDeleteTask = async (taskId: string) => {
+    if (!user) return;
+    
+    try {
+      await deleteTask(taskId);
+      
+      // Remove the task from the state
+      setTasks(prev => prev.filter(task => task.id !== taskId));
+      
+      toast({
+        title: 'Success',
+        description: 'Task deleted successfully',
+      });
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete task',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const handleTaskUpdated = (updatedTask: Task) => {
     setTasks(prev => prev.map(task => task.id === updatedTask.id ? updatedTask : task));
     setShowEditTaskDialog(false);
@@ -131,11 +155,8 @@ const ProductBacklog = ({ projectId, onRefresh }: ProductBacklogProps) => {
       
       await updateTask(updatedTask);
       
-      // Remove the task from the backlog
+      // Remove the task from the backlog state
       setTasks(prev => prev.filter(task => task.id !== taskId));
-      
-      setShowMoveTaskDialog(false);
-      setSelectedTask(null);
       
       toast({
         title: 'Success',
@@ -195,13 +216,31 @@ const ProductBacklog = ({ projectId, onRefresh }: ProductBacklogProps) => {
                 className="p-3 border rounded-md hover:bg-accent/50 transition-colors"
               >
                 <div className="flex justify-between items-start mb-1">
-                  <h4 className="font-medium">{task.title}</h4>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <h4 className="font-medium truncate max-w-[50ch]">{task.title}</h4>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{task.title}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                   <div className={`text-xs font-medium px-2 py-1 rounded-full bg-muted ${getPriorityColor(task.priority)}`}>
                     {task.priority}
                   </div>
                 </div>
                 {task.description && (
-                  <p className="text-sm text-muted-foreground mb-2 line-clamp-2">{task.description}</p>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <p className="text-sm text-muted-foreground mb-2 line-clamp-2">{task.description}</p>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="max-w-xs">{task.description}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 )}
                 <div className="flex justify-between items-center text-xs text-muted-foreground">
                   <span>{task.points} {task.points === 1 ? 'point' : 'points'}</span>
@@ -214,6 +253,9 @@ const ProductBacklog = ({ projectId, onRefresh }: ProductBacklogProps) => {
                         <ArrowRight className="h-4 w-4" />
                       </Button>
                     )}
+                    <Button onClick={() => handleDeleteTask(task.id)} size="sm" variant="ghost" className="h-8 w-8 p-0 text-red-500">
+                      <Trash className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
               </div>

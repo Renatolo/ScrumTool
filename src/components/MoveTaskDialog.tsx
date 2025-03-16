@@ -24,6 +24,7 @@ const MoveTaskDialog = ({ task, open, onOpenChange, sprints, onTaskMoved }: Move
     e.preventDefault();
     if (selectedSprintId) {
       onTaskMoved(task.id, selectedSprintId);
+      onOpenChange(false); // Close dialog after submission
     }
   };
 

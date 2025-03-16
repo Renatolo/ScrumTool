@@ -126,3 +126,41 @@ export async function joinProject(code: string, userId: string) {
     throw error;
   }
 }
+
+/**
+ * Deletes a project and its associated data
+ * @param projectId - The project ID
+ * @returns boolean indicating success
+ */
+export async function deleteProject(projectId: string) {
+  try {
+    // Delete all tasks associated with this project
+    const { error: tasksError } = await supabase
+      .from('tasks')
+      .delete()
+      .eq('project_id', projectId);
+    
+    if (tasksError) throw tasksError;
+    
+    // Delete all sprints associated with this project
+    const { error: sprintsError } = await supabase
+      .from('sprints')
+      .delete()
+      .eq('project_id', projectId);
+    
+    if (sprintsError) throw sprintsError;
+    
+    // Finally delete the project
+    const { error: projectError } = await supabase
+      .from('projects')
+      .delete()
+      .eq('id', projectId);
+    
+    if (projectError) throw projectError;
+    
+    return true;
+  } catch (error) {
+    console.error('Error deleting project:', error);
+    throw error;
+  }
+}

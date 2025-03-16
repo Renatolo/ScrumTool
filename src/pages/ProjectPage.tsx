@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Plus, Home, LayoutDashboard } from "lucide-react";
+import { Plus, Home, LayoutDashboard, Trash } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { fetchProjects } from "@/lib/supabase/projects";
 import { fetchProjectSprints } from "@/lib/supabase/sprints";
@@ -13,6 +13,18 @@ import ProductBacklog from "@/components/ProductBacklog";
 import { Project } from "@/types/user";
 import { Sprint } from "@/types/sprint";
 import SprintList from "@/components/SprintList";
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { supabase } from "@/integrations/supabase/client";
 
 const ProjectPage = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -22,6 +34,7 @@ const ProjectPage = () => {
   const [sprints, setSprints] = useState<Sprint[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateSprintOpen, setIsCreateSprintOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -69,6 +82,49 @@ const ProjectPage = () => {
     navigate('/dashboard');
   };
   
+  const handleDeleteProject = async () => {
+    if (!projectId || !user) return;
+    
+    try {
+      setIsDeleting(true);
+      
+      // Delete all tasks associated with this project
+      await supabase
+        .from('tasks')
+        .delete()
+        .eq('project_id', projectId);
+      
+      // Delete all sprints associated with this project
+      await supabase
+        .from('sprints')
+        .delete()
+        .eq('project_id', projectId);
+      
+      // Finally delete the project
+      await supabase
+        .from('projects')
+        .delete()
+        .eq('id', projectId);
+      
+      toast({
+        title: 'Success',
+        description: 'Project and all associated items deleted successfully',
+      });
+      
+      // Navigate back to dashboard
+      navigate('/dashboard');
+    } catch (error) {
+      console.error('Error deleting project:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete project',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+  
   if (loading) {
     return (
       <div className="flex justify-center items-center h-screen">
@@ -102,6 +158,33 @@ const ProjectPage = () => {
             <Home className="mr-2 h-4 w-4" />
             Home
           </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive">
+                <Trash className="mr-2 h-4 w-4" />
+                Delete Project
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action cannot be undone. This will permanently delete the project
+                  "{project.name}" and all its associated sprints and tasks.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleDeleteProject}
+                  className="bg-red-600 hover:bg-red-700"
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? 'Deleting...' : 'Delete'}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
       
