@@ -55,13 +55,15 @@ const ProjectPage = () => {
       
       try {
         setLoading(true);
-        // Fetch all projects and find the one matching the ID
-        const projectsData = await fetchProjects(user.id);
+        
+        // Fetch project data and sprints in parallel
+        const [projectsData, projectSprints] = await Promise.all([
+          fetchProjects(user.id),
+          fetchProjectSprints(projectId)
+        ]);
+        
         const projectData = projectsData.find(p => p.id === projectId);
         setProject(projectData || null);
-        
-        // Fetch sprints that belong to this project directly
-        const projectSprints = await fetchProjectSprints(projectId);
         setSprints(projectSprints);
         
         const today = new Date();
@@ -78,13 +80,13 @@ const ProjectPage = () => {
         setActiveSprint(active);
         setPastSprints(past);
         
-        // Fetch tasks for this project
+        // Fetch tasks for active sprint if it exists
         if (active) {
           const sprintTasks = await fetchSprintTasks(active.id);
           setTasks(sprintTasks);
         }
         
-        // Fetch user profiles if there are members
+        // Fetch additional data only if project exists
         if (projectData && projectData.members && projectData.members.length > 0) {
           const { data: profiles } = await supabase
             .from('profiles')
@@ -137,15 +139,29 @@ const ProjectPage = () => {
   }, [projectId, user, toast]);
   
   const handleSprintCreated = (newSprint: Sprint) => {
-    setSprints(prevSprints => [...prevSprints, newSprint]);
+    setSprints(prevSprints => [newSprint, ...prevSprints]);
+    
+    // If this is a new current sprint (based on dates), update active sprint
+    const today = new Date();
+    const startDate = new Date(newSprint.startDate);
+    const endDate = new Date(newSprint.endDate);
+    
+    if (startDate <= today && endDate >= today) {
+      setActiveSprint(newSprint);
+    }
+    
     setProjectStats(prev => ({
       ...prev,
       totalSprints: prev.totalSprints + 1
     }));
+    
     toast({
       title: 'Success',
       description: 'Sprint created successfully',
     });
+    
+    // Force a reload of project data to ensure everything is in sync
+    loadProject();
   };
 
   const handleGoHome = () => {
@@ -450,3 +466,4 @@ const ProjectPage = () => {
 };
 
 export default ProjectPage;
+

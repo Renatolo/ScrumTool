@@ -170,9 +170,9 @@ const CreateSprintDialog = ({
       <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Replace Active Sprint?</AlertDialogTitle>
+            <AlertDialogTitle>Create Additional Sprint?</AlertDialogTitle>
             <AlertDialogDescription>
-              There is already an active sprint for this project. Creating a new sprint will replace the current one as the active sprint. Are you sure you want to continue?
+              There is already an active sprint for this project. Creating a new sprint will add it alongside the current active sprint. Both sprints will be available.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
