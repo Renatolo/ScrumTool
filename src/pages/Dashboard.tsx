@@ -1,5 +1,6 @@
+
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/router';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchProjectSprints } from '@/lib/supabase/sprints';
 import { fetchTasks } from '@/lib/supabase/tasks';
@@ -26,32 +27,33 @@ import { format } from "date-fns"
 import CreateSprintDialog from '@/components/CreateSprintDialog';
 import TaskTable from '@/components/TaskTable';
 import LogoutButton from '@/components/LogoutButton';
+import { CalendarIcon } from "lucide-react";
 
 const Dashboard = () => {
-  const { user, signOut } = useAuth();
-  const router = useRouter();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const { projectId } = useParams();
   const [sprints, setSprints] = useState<Sprint[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isCreateSprintDialogOpen, setIsCreateSprintDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const projectId = router.query.projectId as string;
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (!user) {
-      router.push('/login');
+      navigate('/login');
       return;
     }
 
     if (projectId) {
       fetchData();
     }
-  }, [user, router, projectId]);
+  }, [user, navigate, projectId]);
 
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const sprintsData = await fetchProjectSprints(projectId);
+      const sprintsData = await fetchProjectSprints(projectId || '');
       setSprints(sprintsData);
 
       const tasksData = await fetchTasks(user!.id);
@@ -89,7 +91,7 @@ const Dashboard = () => {
     <div className="container mx-auto p-4">
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold">Project Dashboard</h1>
-        <LogoutButton variant="outline" />
+        <LogoutButton />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -164,14 +166,12 @@ const Dashboard = () => {
         open={isCreateSprintDialogOpen}
         onClose={closeCreateSprintDialog}
         onCreateSprint={handleCreateSprint}
-        projectId={projectId}
+        projectId={projectId || ''}
         hasActiveSprint={!!activeSprint}
         activeSprintId={activeSprint?.id}
       />
     </div>
   );
 };
-
-import { CalendarIcon } from "@radix-ui/react-icons"
 
 export default Dashboard;
