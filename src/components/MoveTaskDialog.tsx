@@ -8,6 +8,9 @@ import { Label } from "@/components/ui/label";
 import { useState } from "react";
 import { Calendar } from "lucide-react";
 import { format } from "date-fns";
+import { fetchProductBacklog, updateTask } from "@/lib/supabase/tasks";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface MoveTaskDialogProps {
   open: boolean;
@@ -19,12 +22,45 @@ interface MoveTaskDialogProps {
 
 const MoveTaskDialog = ({ task, open, onOpenChange, sprints, onTaskMoved }: MoveTaskDialogProps) => {
   const [selectedSprintId, setSelectedSprintId] = useState<string>("");
+  const [isMoving, setIsMoving] = useState(false);
+  const { toast } = useToast();
+  const { user } = useAuth();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (selectedSprintId) {
+    if (!selectedSprintId || !user) return;
+    
+    try {
+      setIsMoving(true);
+      
+      // Update the task with the new sprint ID
+      const updatedTask = {
+        ...task,
+        sprintId: selectedSprintId,
+        user_id: user.id
+      };
+      
+      await updateTask(updatedTask);
+      
+      // Notify parent component that task was moved
       onTaskMoved(task.id, selectedSprintId);
-      onOpenChange(false); // Close dialog after submission
+      
+      // Close dialog after successful move
+      onOpenChange(false);
+      
+      toast({
+        title: "Success",
+        description: "Task moved to sprint successfully",
+      });
+    } catch (error) {
+      console.error("Failed to move task:", error);
+      toast({
+        title: "Error",
+        description: "Failed to move task to sprint",
+        variant: "destructive",
+      });
+    } finally {
+      setIsMoving(false);
     }
   };
 
@@ -62,8 +98,8 @@ const MoveTaskDialog = ({ task, open, onOpenChange, sprints, onTaskMoved }: Move
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={!selectedSprintId}>
-              Move Task
+            <Button type="submit" disabled={!selectedSprintId || isMoving}>
+              {isMoving ? "Moving..." : "Move Task"}
             </Button>
           </div>
         </form>
