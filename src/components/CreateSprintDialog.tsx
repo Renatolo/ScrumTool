@@ -41,11 +41,40 @@ const CreateSprintDialog = ({
   const [endDate, setEndDate] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [dateError, setDateError] = useState("");
   const { user } = useAuth();
   const { toast } = useToast();
 
+  const validateDates = () => {
+    setDateError("");
+    
+    if (!startDate || !endDate) {
+      setDateError("Both start and end dates are required");
+      return false;
+    }
+    
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      setDateError("Invalid date format");
+      return false;
+    }
+    
+    if (end < start) {
+      setDateError("End date must be after start date");
+      return false;
+    }
+    
+    return true;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!validateDates()) {
+      return;
+    }
     
     if (!user) {
       toast({
@@ -123,6 +152,10 @@ const CreateSprintDialog = ({
 
   const handleCloseDialog = () => {
     // Reset the form state
+    setName("");
+    setStartDate("");
+    setEndDate("");
+    setDateError("");
     setShowConfirmDialog(false);
     onClose();
   };
@@ -167,6 +200,9 @@ const CreateSprintDialog = ({
                 onChange={(e) => setEndDate(e.target.value)}
                 required
               />
+              {dateError && (
+                <p className="text-sm text-destructive mt-1">{dateError}</p>
+              )}
             </div>
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={handleCloseDialog} disabled={isSubmitting}>

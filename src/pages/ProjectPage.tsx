@@ -1,4 +1,3 @@
-
 import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -115,7 +114,6 @@ const ProjectPage = () => {
     loadProject();
   }, [projectId, user, toast]);
   
-  // New helper function to categorize sprints
   const updateSprintCategories = (sprintList: Sprint[]) => {
     const today = new Date();
     
@@ -145,24 +143,34 @@ const ProjectPage = () => {
   };
   
   const handleSprintCreated = (newSprint: Sprint) => {
-    // Update the sprints array with the new sprint
-    const updatedSprints = [...sprints, newSprint];
-    setSprints(updatedSprints);
+    console.log('New sprint created:', newSprint);
     
-    // Immediately update the active sprint
-    const today = new Date();
-    if (new Date(newSprint.startDate) <= today && new Date(newSprint.endDate) >= today) {
-      // The new sprint is the active sprint
-      setActiveSprint(newSprint);
+    setSprints(prevSprints => {
+      const nonConflictingSprints = prevSprints.filter(s => 
+        new Date(s.endDate) < new Date(newSprint.startDate) ||
+        new Date(s.startDate) > new Date(newSprint.endDate)
+      );
       
-      // Load tasks for this sprint if needed
+      return [...nonConflictingSprints, newSprint];
+    });
+    
+    const today = new Date();
+    const startDate = new Date(newSprint.startDate);
+    const endDate = new Date(newSprint.endDate);
+    
+    if (startDate <= today && endDate >= today) {
+      setActiveSprint(newSprint);
       loadSprintTasks(newSprint.id);
     }
     
-    // Update past sprints as well
-    updateSprintCategories(updatedSprints);
+    setPastSprints(prev => {
+      const newPastSprints = [...prev];
+      if (endDate < today) {
+        newPastSprints.push(newSprint);
+      }
+      return newPastSprints;
+    });
     
-    // Update project stats
     setProjectStats(prev => ({
       ...prev,
       totalSprints: prev.totalSprints + 1

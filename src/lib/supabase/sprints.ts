@@ -43,6 +43,14 @@ export async function fetchSprints(userId: string) {
  * @returns The created sprint
  */
 export async function createSprint(sprint: Omit<Sprint, 'id'> & { userId: string }) {
+  // Validate dates for coherence
+  const startDate = new Date(sprint.startDate);
+  const endDate = new Date(sprint.endDate);
+  
+  if (endDate < startDate) {
+    throw new Error('End date must be after start date');
+  }
+  
   // Map from our application schema to database schema
   const dbSprint = {
     name: sprint.name,
@@ -51,6 +59,22 @@ export async function createSprint(sprint: Omit<Sprint, 'id'> & { userId: string
     user_id: sprint.userId,
     project_id: sprint.projectId
   };
+  
+  // Check for existing sprints that overlap with the new one for this project
+  const { data: existingSprints } = await supabase
+    .from('sprints')
+    .select('id')
+    .eq('project_id', sprint.projectId)
+    .lte('start_date', sprint.endDate)
+    .gte('end_date', sprint.startDate);
+  
+  if (existingSprints && existingSprints.length > 0) {
+    console.log('Found overlapping sprints:', existingSprints);
+    // Delete the overlapping sprints
+    for (const existingSprint of existingSprints) {
+      await deleteSprint(existingSprint.id);
+    }
+  }
   
   const { data, error } = await supabase
     .from('sprints')
@@ -80,6 +104,14 @@ export async function createSprint(sprint: Omit<Sprint, 'id'> & { userId: string
  * @returns boolean indicating success
  */
 export async function updateSprint(sprint: Sprint & { userId: string }) {
+  // Validate dates for coherence
+  const startDate = new Date(sprint.startDate);
+  const endDate = new Date(sprint.endDate);
+  
+  if (endDate < startDate) {
+    throw new Error('End date must be after start date');
+  }
+  
   // Map from our application schema to database schema
   const dbSprint = {
     name: sprint.name,
@@ -108,6 +140,19 @@ export async function updateSprint(sprint: Sprint & { userId: string }) {
  * @returns boolean indicating success
  */
 export async function deleteSprint(id: string) {
+  console.log('Deleting sprint with ID:', id);
+  
+  // First delete any tasks associated with this sprint
+  try {
+    await supabase
+      .from('tasks')
+      .update({ sprint_id: null })
+      .eq('sprint_id', id);
+  } catch (error) {
+    console.error('Error removing tasks from sprint:', error);
+    // Continue with deletion even if this fails
+  }
+  
   const { error } = await supabase
     .from('sprints')
     .delete()
@@ -118,6 +163,7 @@ export async function deleteSprint(id: string) {
     throw error;
   }
   
+  console.log('Sprint deleted successfully');
   return true;
 }
 
@@ -128,40 +174,30 @@ export async function deleteSprint(id: string) {
  * @returns The created sprint
  */
 export async function replaceActiveSprint(currentSprintId: string, newSprint: Omit<Sprint, 'id'> & { userId: string }) {
+  // Validate dates for coherence
+  const startDate = new Date(newSprint.startDate);
+  const endDate = new Date(newSprint.endDate);
+  
+  if (endDate < startDate) {
+    throw new Error('End date must be after start date');
+  }
+  
+  console.log('Replacing active sprint:', currentSprintId, 'with new sprint');
+  
   // Start a transaction to ensure both operations succeed or fail together
   try {
-    const { data, error } = await supabase.rpc('replace_active_sprint', {
-      current_sprint_id: currentSprintId,
-      new_sprint_name: newSprint.name,
-      new_sprint_start_date: newSprint.startDate,
-      new_sprint_end_date: newSprint.endDate,
-      user_id: newSprint.userId,
-      project_id: newSprint.projectId
-    });
-
-    if (error) {
-      console.error('Error replacing sprint with RPC:', error);
-      
-      // Fallback to manual delete and create if RPC is not available
-      await deleteSprint(currentSprintId);
-      return createSprint(newSprint);
+    // First: Delete the current sprint
+    const deleteResult = await deleteSprint(currentSprintId);
+    
+    if (!deleteResult) {
+      throw new Error('Failed to delete current sprint');
     }
     
-    // Map the response back to our application schema
-    return {
-      id: data.id,
-      name: data.name,
-      startDate: data.start_date || new Date().toISOString(),
-      endDate: data.end_date || new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-      tasks: [],
-      projectId: data.project_id
-    } as Sprint;
+    // Second: Create the new sprint
+    return await createSprint(newSprint);
   } catch (error) {
     console.error('Error in replaceActiveSprint:', error);
-    
-    // Fallback to manual delete and create
-    await deleteSprint(currentSprintId);
-    return createSprint(newSprint);
+    throw error;
   }
 }
 
