@@ -13,6 +13,8 @@ import CreateSprintDialog from "@/components/CreateSprintDialog";
 import { Project } from "@/types/user";
 import { Sprint } from "@/types/sprint";
 import { Task } from "@/types/task";
+import ProductBacklog from "@/components/ProductBacklog";
+import SprintList from "@/components/SprintList";
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -24,7 +26,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase/client";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 const ProjectPage = () => {
@@ -34,6 +36,7 @@ const ProjectPage = () => {
   const [project, setProject] = useState<Project | null>(null);
   const [sprints, setSprints] = useState<Sprint[]>([]);
   const [activeSprint, setActiveSprint] = useState<Sprint | null>(null);
+  const [pastSprints, setPastSprints] = useState<Sprint[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [userProfiles, setUserProfiles] = useState<Record<string, { name: string; id: string }>>({});
   const [projectStats, setProjectStats] = useState({
@@ -62,16 +65,23 @@ const ProjectPage = () => {
         const projectSprints = await fetchProjectSprints(projectId);
         setSprints(projectSprints);
         
-        // Find the first "active" sprint (you might need to adjust the logic here)
-        const currentSprint = projectSprints.find(s => 
-          new Date(s.startDate) <= new Date() && new Date(s.endDate) >= new Date()
+        const today = new Date();
+
+        // Separate active and past sprints
+        const active = projectSprints.find(s => 
+          new Date(s.startDate) <= today && new Date(s.endDate) >= today
         ) || null;
         
-        setActiveSprint(currentSprint);
+        const past = projectSprints.filter(s => 
+          new Date(s.endDate) < today
+        );
+        
+        setActiveSprint(active);
+        setPastSprints(past);
         
         // Fetch tasks for this project
-        if (currentSprint) {
-          const sprintTasks = await fetchSprintTasks(currentSprint.id);
+        if (active) {
+          const sprintTasks = await fetchSprintTasks(active.id);
           setTasks(sprintTasks);
         }
         
@@ -190,8 +200,60 @@ const ProjectPage = () => {
     }
   };
 
+  const handleRefresh = () => {
+    if (projectId && user) {
+      // Reload project data
+      loadProject();
+    }
+  };
+
   const getInitials = (name: string) => {
     return name.charAt(0).toUpperCase();
+  };
+  
+  const loadProject = async () => {
+    if (!projectId || !user) return;
+    
+    try {
+      setLoading(true);
+      // Fetch all projects and find the one matching the ID
+      const projectsData = await fetchProjects(user.id);
+      const projectData = projectsData.find(p => p.id === projectId);
+      setProject(projectData || null);
+      
+      // Fetch sprints that belong to this project directly
+      const projectSprints = await fetchProjectSprints(projectId);
+      setSprints(projectSprints);
+      
+      const today = new Date();
+
+      // Separate active and past sprints
+      const active = projectSprints.find(s => 
+        new Date(s.startDate) <= today && new Date(s.endDate) >= today
+      ) || null;
+      
+      const past = projectSprints.filter(s => 
+        new Date(s.endDate) < today
+      );
+      
+      setActiveSprint(active);
+      setPastSprints(past);
+      
+      // Fetch tasks for this project
+      if (active) {
+        const sprintTasks = await fetchSprintTasks(active.id);
+        setTasks(sprintTasks);
+      }
+    } catch (error) {
+      console.error('Error loading project data:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load project data',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
   };
   
   if (loading) {
@@ -237,7 +299,7 @@ const ProjectPage = () => {
       )}
       
       <div className="grid md:grid-cols-3 gap-6">
-        {/* Left column - Active Sprint */}
+        {/* Left column - Active Sprint and Product Backlog */}
         <div className="md:col-span-2">
           <Card className="mb-6">
             <CardContent className="p-6">
@@ -246,7 +308,6 @@ const ProjectPage = () => {
               
               {activeSprint ? (
                 <div>
-                  {/* Sprint details would go here */}
                   <Button variant="outline" className="w-full" onClick={() => navigate(`/sprint/${activeSprint.id}`)}>
                     View Sprint Board
                   </Button>
@@ -269,12 +330,24 @@ const ProjectPage = () => {
             </CardContent>
           </Card>
           
+          {/* Product Backlog */}
+          <div className="mb-6">
+            {projectId && <ProductBacklog projectId={projectId} onRefresh={handleRefresh} />}
+          </div>
+          
+          {/* Past Sprints */}
           <Card>
             <CardContent className="p-6">
               <h2 className="text-xl font-semibold mb-2">Past Sprints</h2>
-              <p className="text-muted-foreground">View completed sprints and their results</p>
+              <p className="text-muted-foreground mb-4">View completed sprints and their results</p>
               
-              {/* Sprint list would go here */}
+              {pastSprints.length > 0 ? (
+                <SprintList sprints={pastSprints} projectId={projectId} />
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground">No past sprints available</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
