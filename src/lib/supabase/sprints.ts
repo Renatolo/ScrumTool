@@ -173,34 +173,9 @@ export async function deleteSprint(id: string) {
 }
 
 /**
- * Replaces the current active sprint with a new one
- * @param currentSprintId - The ID of the current sprint to delete
- * @param newSprint - The new sprint data to create
- * @returns The created sprint
- */
-export async function replaceActiveSprint(currentSprintId: string, newSprint: Omit<Sprint, 'id'> & { userId: string }) {
-  const startDate = new Date(newSprint.startDate);
-  const endDate = new Date(newSprint.endDate);
-
-  if (endDate <= startDate) {
-    throw new Error('End date must be after start date');
-  }
-
-  console.log('Replacing active sprint:', currentSprintId, 'with new sprint');
-
-  try {
-    // We can now use createSprint directly since it will delete all existing sprints
-    return await createSprint(newSprint);
-  } catch (error) {
-    console.error('Error in replaceActiveSprint:', error);
-    throw error;
-  }
-}
-
-/**
  * Fetches sprints for a specific project
  * @param projectId - The project's ID
- * @returns Array of sprints
+ * @returns Array of sprints (should be maximum one)
  */
 export async function fetchProjectSprints(projectId: string) {
   console.time('fetchProjectSprints');
