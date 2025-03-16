@@ -211,38 +211,3 @@ export async function fetchProjectSprints(projectId: string) {
   console.timeEnd('fetchProjectSprints');
   return mappedSprints as Sprint[];
 }
-
-export async function updateSprint(sprint: Sprint & { userId: string }) {
-  console.log('🛠 Updating sprint:', sprint);
-
-  const startDate = new Date(sprint.startDate);
-  const endDate = new Date(sprint.endDate);
-
-  if (endDate <= startDate) {
-    throw new Error('End date must be after start date');
-  }
-
-  const dbSprint = {
-    name: sprint.name,
-    start_date: startDate.toISOString(),
-    end_date: endDate.toISOString(),
-    user_id: sprint.userId,
-    project_id: sprint.projectId
-  };
-
-  console.log('🔄 Updating sprint in DB:', dbSprint);
-
-  const { data, error } = await supabase
-    .from('sprints')
-    .update(dbSprint)
-    .eq('id', sprint.id)
-    .select();
-
-  if (error) {
-    console.error('❌ Error updating sprint:', error);
-    throw error;
-  }
-
-  console.log('✅ Sprint updated:', data);
-  return true;
-}
