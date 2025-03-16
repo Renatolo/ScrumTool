@@ -1,8 +1,7 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Plus, LogOut, Home } from "lucide-react";
+import { Plus, LogOut, Home, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase/client";
@@ -10,7 +9,18 @@ import { Project } from "@/types/user";
 import LogoutButton from "@/components/LogoutButton";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { createProject } from "@/lib/supabase/projects";
+import { createProject, deleteProject } from "@/lib/supabase/projects";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const Dashboard = () => {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -19,6 +29,8 @@ const Dashboard = () => {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [projectName, setProjectName] = useState("");
   const [projectDescription, setProjectDescription] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [projectToDelete, setProjectToDelete] = useState<string | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -30,7 +42,6 @@ const Dashboard = () => {
       try {
         setIsLoading(true);
         
-        // Fetch all projects from Supabase
         const { data, error } = await supabase
           .from('projects')
           .select('*');
@@ -39,13 +50,11 @@ const Dashboard = () => {
         
         setProjects(data as Project[] || []);
 
-        // Collect all unique user IDs from projects
         const userIds = new Set<string>();
         data?.forEach(project => {
           if (project.user_id) userIds.add(project.user_id);
         });
 
-        // Fetch user profiles for those IDs
         if (userIds.size > 0) {
           const { data: profiles, error: profilesError } = await supabase
             .from('profiles')
@@ -98,7 +107,6 @@ const Dashboard = () => {
     }
     
     try {
-      // Generate a unique project code
       const projectCode = Math.random().toString(36).substring(2, 8).toUpperCase();
       const ts = new Date().toISOString();
       
@@ -117,10 +125,8 @@ const Dashboard = () => {
         duration: 3000,
       });
       
-      // Add the new project to the list
       setProjects([...projects, newProject]);
       
-      // Reset form and close dialog
       setProjectName("");
       setProjectDescription("");
       setIsCreateDialogOpen(false);
@@ -132,6 +138,32 @@ const Dashboard = () => {
         variant: 'destructive',
         duration: 5000,
       });
+    }
+  };
+
+  const handleDeleteConfirm = async (projectId: string) => {
+    setIsDeleting(true);
+    setProjectToDelete(projectId);
+    
+    try {
+      await deleteProject(projectId);
+      
+      setProjects(projects.filter(project => project.id !== projectId));
+      
+      toast({
+        title: "Success",
+        description: "Project deleted successfully",
+      });
+    } catch (error) {
+      console.error("Error deleting project:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete project",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+      setProjectToDelete(null);
     }
   };
 
@@ -198,7 +230,7 @@ const Dashboard = () => {
                         <td className="py-3 px-4">
                           {project.members ? project.members.length : 0} members
                         </td>
-                        <td className="py-3 px-4 text-right">
+                        <td className="py-3 px-4 text-right flex justify-end gap-2">
                           <Button 
                             variant="default" 
                             size="sm"
@@ -206,6 +238,36 @@ const Dashboard = () => {
                           >
                             View
                           </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button 
+                                variant="destructive" 
+                                size="sm"
+                                disabled={isDeleting && projectToDelete === project.id}
+                              >
+                                <Trash2 size={16} />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Project</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete "{project.name}"? 
+                                  This will permanently remove the project and all associated sprints and tasks.
+                                  This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDeleteConfirm(project.id)}
+                                  className="bg-red-600 hover:bg-red-700"
+                                >
+                                  {isDeleting && projectToDelete === project.id ? 'Deleting...' : 'Delete'}
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         </td>
                       </tr>
                     ))}
