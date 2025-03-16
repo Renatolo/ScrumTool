@@ -229,7 +229,7 @@ const CreateSprintDialog = ({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setShowConfirmDialog(false)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={createNewSprint}>
+            <AlertDialogAction onClick={() => createNewSprint()}>
               Replace Current Sprint
             </AlertDialogAction>
           </AlertDialogFooter>
