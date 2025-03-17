@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -18,6 +19,7 @@ import CreateTaskDialog from "./CreateTaskDialog";
 import EditTaskDialog from "./EditTaskDialog";
 import MoveTaskDialog from "./MoveTaskDialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface ProductBacklogProps {
   projectId: string;
@@ -182,7 +184,7 @@ const ProductBacklog = ({ projectId, onRefresh }: ProductBacklogProps) => {
   };
 
   return (
-    <Card>
+    <Card className="h-full flex flex-col">
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle className="flex items-center">
@@ -196,65 +198,67 @@ const ProductBacklog = ({ projectId, onRefresh }: ProductBacklogProps) => {
           Add Task
         </Button>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex-1 overflow-hidden">
         {isLoading ? (
           <div className="text-center py-4">
             <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full mb-2 mx-auto"></div>
             <p className="text-sm text-muted-foreground">Loading backlog...</p>
           </div>
         ) : tasks.length > 0 ? (
-          <div className="space-y-2">
-            {tasks.map((task) => (
-              <div 
-                key={task.id} 
-                className="p-3 border rounded-md hover:bg-accent/50 transition-colors"
-              >
-                <div className="flex justify-between items-start mb-1">
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <h4 className="font-medium truncate max-w-[50ch]">{task.title}</h4>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>{task.title}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                  <div className={`text-xs font-medium px-2 py-1 rounded-full bg-muted ${getPriorityColor(task.priority)}`}>
-                    {task.priority}
+          <ScrollArea className="h-[calc(100vh-300px)]">
+            <div className="space-y-2 pr-4">
+              {tasks.map((task) => (
+                <div 
+                  key={task.id} 
+                  className="p-3 border rounded-md transition-colors"
+                >
+                  <div className="flex justify-between items-start mb-1">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <h4 className="font-medium truncate max-w-[50ch]">{task.title}</h4>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>{task.title}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    <div className={`text-xs font-medium px-2 py-1 rounded-full bg-muted ${getPriorityColor(task.priority)}`}>
+                      {task.priority}
+                    </div>
                   </div>
-                </div>
-                {task.description && (
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <p className="text-sm text-muted-foreground mb-2 line-clamp-2">{task.description}</p>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p className="max-w-xs">{task.description}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                )}
-                <div className="flex justify-between items-center text-xs text-muted-foreground">
-                  <span>{task.points} {task.points === 1 ? 'point' : 'points'}</span>
-                  <div className="flex space-x-1">
-                    <Button onClick={() => handleEditTask(task)} size="sm" variant="ghost" className="h-8 w-8 p-0">
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    {sprints.length > 0 && (
-                      <Button onClick={() => handleMoveTask(task)} size="sm" variant="ghost" className="h-8 w-8 p-0 text-blue-500">
-                        <ArrowRight className="h-4 w-4" />
+                  {task.description && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <p className="text-sm text-muted-foreground mb-2 line-clamp-2">{task.description}</p>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="max-w-xs">{task.description}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
+                  <div className="flex justify-between items-center text-xs text-muted-foreground">
+                    <span>{task.points} {task.points === 1 ? 'point' : 'points'}</span>
+                    <div className="flex space-x-1">
+                      <Button onClick={() => handleEditTask(task)} size="sm" variant="ghost" className="h-8 w-8 p-0">
+                        <Edit className="h-4 w-4" />
                       </Button>
-                    )}
-                    <Button onClick={() => handleDeleteTask(task.id)} size="sm" variant="ghost" className="h-8 w-8 p-0 text-red-500">
-                      <Trash className="h-4 w-4" />
-                    </Button>
+                      {sprints.length > 0 && (
+                        <Button onClick={() => handleMoveTask(task)} size="sm" variant="ghost" className="h-8 w-8 p-0 text-blue-500">
+                          <ArrowRight className="h-4 w-4" />
+                        </Button>
+                      )}
+                      <Button onClick={() => handleDeleteTask(task.id)} size="sm" variant="ghost" className="h-8 w-8 p-0 text-red-500">
+                        <Trash className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          </ScrollArea>
         ) : (
           <div className="text-center py-8">
             <ListChecks className="h-12 w-12 text-muted-foreground mb-4 mx-auto" />
