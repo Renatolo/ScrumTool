@@ -89,8 +89,9 @@ const CreateSprintDialog = ({
 
     // If there's an active sprint, show the confirmation dialog
     if (hasActiveSprint) {
-      setShowConfirmDialog(true);
-      return;
+      //setShowConfirmDialog(true);
+      //return;
+      await createNewSprint();
     }
 
     // If no active sprint, create the sprint directly
@@ -160,13 +161,6 @@ const CreateSprintDialog = ({
     onClose();
   };
 
-  const handleConfirm = () => {
-    await createNewSprint(); // Call createNewSprint on confirmation
-  };
-
-  const handleCancelConfirm = () => {
-    setShowConfirmDialog(false); // Close confirmation dialog
-  };
 
   return (
     <>
