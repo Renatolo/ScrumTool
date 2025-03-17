@@ -161,7 +161,7 @@ const CreateSprintDialog = ({
   };
 
   const handleConfirm = () => {
-    createNewSprint(); // Call createNewSprint on confirmation
+    await createNewSprint(); // Call createNewSprint on confirmation
   };
 
   const handleCancelConfirm = () => {
