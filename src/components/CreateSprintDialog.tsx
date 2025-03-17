@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -135,7 +136,7 @@ const CreateSprintDialog = ({
         title: "Success",
         description: hasActiveSprint 
           ? "Previous sprint replaced successfully" 
-          : "Sprint created successfully",
+          : "Sprint created successfully"
       });
     } catch (error) {
       console.error("Error creating sprint:", error);

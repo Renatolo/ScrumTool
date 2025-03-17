@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Home, Trash, Users, BarChart } from "lucide-react";
+import { Plus, Home, Trash, Users, BarChart, LayoutDashboard } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { fetchProjects } from "@/lib/supabase/projects";
 import { fetchProjectSprints } from "@/lib/supabase/sprints";
@@ -296,10 +296,16 @@ const ProjectPage = () => {
       
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-3xl font-bold">{project?.name}</h1>
-        <Button variant="default" onClick={() => setIsCreateSprintOpen(true)} className="bg-[#6B8C6B] hover:bg-[#5a7a5a]">
-          <Plus className="mr-2 h-4 w-4" />
-          Create Sprint
-        </Button>
+        <div className="flex items-center space-x-2">
+          <Button variant="outline" onClick={() => navigate('/dashboard')}>
+            <LayoutDashboard className="mr-2 h-4 w-4" />
+            Dashboard
+          </Button>
+          <Button variant="default" onClick={() => setIsCreateSprintOpen(true)} className="bg-[#6B8C6B] hover:bg-[#5a7a5a]">
+            <Plus className="mr-2 h-4 w-4" />
+            Create Sprint
+          </Button>
+        </div>
       </div>
       
       {project?.description && (
@@ -337,11 +343,7 @@ const ProjectPage = () => {
             </CardContent>
           </Card>
           
-          <div className="mb-6">
-            {projectId && <ProductBacklog projectId={projectId} onRefresh={handleRefresh} />}
-          </div>
-          
-          <Card>
+          <Card className="mb-6">
             <CardContent className="p-6">
               <h2 className="text-xl font-semibold mb-2">Past Sprints</h2>
               <p className="text-muted-foreground mb-4">View completed sprints and their results</p>
@@ -358,6 +360,10 @@ const ProjectPage = () => {
         </div>
         
         <div>
+          <div className="mb-6">
+            {projectId && <ProductBacklog projectId={projectId} onRefresh={handleRefresh} />}
+          </div>
+          
           <Card className="mb-6">
             <CardContent className="p-6">
               <h2 className="text-xl font-semibold mb-4 flex items-center">

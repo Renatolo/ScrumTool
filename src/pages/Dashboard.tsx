@@ -1,3 +1,4 @@
+
 // src/pages/Dashboard.tsx
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -8,7 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, CopyCheck, ClipboardList, UserPlus, Home } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Plus, CopyCheck, ClipboardList, UserPlus, Home, LayoutDashboard } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog,
@@ -28,9 +30,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import LogoutButton from "@/components/LogoutButton";
 
 const Dashboard = () => {
-  const { user, signOut } = useAuth();
+  const { user, logout } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [newProjectName, setNewProjectName] = useState("");
+  const [newProjectDescription, setNewProjectDescription] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [joinCode, setJoinCode] = useState("");
   const [isJoining, setIsJoining] = useState(false);
@@ -91,13 +94,15 @@ const Dashboard = () => {
       const newProject = await createProject({
         name: newProjectName,
         user_id: user.id,
-        description: "A new project",
+        description: newProjectDescription || "A new project",
         code: projectCode,
         members: [user.id],
+        created_at: new Date().toISOString(),
       });
 
       setProjects((prevProjects) => [...prevProjects, newProject]);
       setNewProjectName("");
+      setNewProjectDescription("");
       toast({
         title: "Success",
         description: "Project created successfully",
@@ -170,10 +175,13 @@ const Dashboard = () => {
     <div className="container mx-auto p-4">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Dashboard</h1>
-        <Button variant="outline" onClick={handleGoHome}>
-          <Home className="mr-2 h-4 w-4" />
-          Home
-        </Button>
+        <div className="flex items-center space-x-2">
+          <Button variant="outline" onClick={handleGoHome}>
+            <Home className="mr-2 h-4 w-4" />
+            Home
+          </Button>
+          <LogoutButton />
+        </div>
       </div>
 
       <div className="grid md:grid-cols-2 gap-6">
@@ -191,6 +199,16 @@ const Dashboard = () => {
                   placeholder="Enter project name"
                   value={newProjectName}
                   onChange={(e) => setNewProjectName(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="newProjectDescription">Project Description</Label>
+                <Textarea
+                  id="newProjectDescription"
+                  placeholder="Enter project description"
+                  value={newProjectDescription}
+                  onChange={(e) => setNewProjectDescription(e.target.value)}
+                  rows={3}
                 />
               </div>
               <Button disabled={isCreating} onClick={handleCreateProject}>
@@ -281,10 +299,6 @@ const Dashboard = () => {
           <p className="text-muted-foreground">Create a new project or join an existing one to get started.</p>
         </div>
       )}
-
-      <div className="flex justify-end mt-8">
-        <LogoutButton />
-      </div>
     </div>
   );
 };
