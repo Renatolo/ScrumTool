@@ -46,7 +46,7 @@ const ProjectPage = () => {
   });
   const [loading, setLoading] = useState(true);
   const [isCreateSprintOpen, setIsCreateSprintOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(isDeleting);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -313,7 +313,41 @@ const ProjectPage = () => {
       )}
       
       <div className="grid md:grid-cols-3 gap-6">
+        {/* Product Backlog - Left Column */}
+        <div>
+          <div className="mb-6">
+            {projectId && <ProductBacklog projectId={projectId} onRefresh={handleRefresh} />}
+          </div>
+          
+          {/* Team Members Card - Moved below Product Backlog */}
+          <Card className="mb-6">
+            <CardContent className="p-6">
+              <h2 className="text-xl font-semibold mb-4 flex items-center">
+                <Users className="mr-2 h-5 w-5" /> Team Members
+              </h2>
+              
+              <div className="space-y-4 mb-6">
+                {Object.values(userProfiles).map((profile) => (
+                  <div key={profile.id} className="flex items-center">
+                    <Avatar className="h-8 w-8 mr-3">
+                      <AvatarFallback>{getInitials(profile.name)}</AvatarFallback>
+                    </Avatar>
+                    <span>{profile.name}</span>
+                  </div>
+                ))}
+              </div>
+              
+              <Button variant="outline" className="w-full">
+                <Plus className="mr-2 h-4 w-4" />
+                Invite Member
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+        
+        {/* Sprints - Middle and Right Columns */}
         <div className="md:col-span-2">
+          {/* Current Sprint Card */}
           <Card className="mb-6">
             <CardContent className="p-6">
               <h2 className="text-xl font-semibold mb-2">Current Sprint</h2>
@@ -343,6 +377,80 @@ const ProjectPage = () => {
             </CardContent>
           </Card>
           
+          {/* Project Stats Card - Moved above Past Sprints */}
+          <div className="grid md:grid-cols-2 gap-6 mb-6">
+            <Card>
+              <CardContent className="p-6">
+                <h2 className="text-xl font-semibold mb-4 flex items-center">
+                  <BarChart className="mr-2 h-5 w-5" /> Project Stats
+                </h2>
+                
+                <div className="space-y-4">
+                  <div className="flex justify-between">
+                    <span>Total Sprints</span>
+                    <span className="font-semibold">{projectStats.totalSprints}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Total Tasks</span>
+                    <span className="font-semibold">{projectStats.totalTasks}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Completion Rate</span>
+                    <span className="font-semibold">{projectStats.completionRate}%</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Team Size</span>
+                    <span className="font-semibold">{projectStats.teamSize}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            {/* Delete Project - Moved to right side */}
+            <div className="flex flex-col">
+              <Card className="flex-1">
+                <CardContent className="p-6 flex flex-col h-full">
+                  <h2 className="text-xl font-semibold mb-4 flex items-center">
+                    <Trash className="mr-2 h-5 w-5" /> Project Actions
+                  </h2>
+                  
+                  <p className="text-muted-foreground mb-6 flex-1">
+                    Manage your project settings and actions
+                  </p>
+                  
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive" className="w-full mt-auto">
+                        <Trash className="mr-2 h-4 w-4" />
+                        Delete Project
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This action cannot be undone. This will permanently delete the project
+                          "{project.name}" and all its associated sprints and tasks.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={handleDeleteProject}
+                          className="bg-red-600 hover:bg-red-700"
+                          disabled={isDeleting}
+                        >
+                          {isDeleting ? 'Deleting...' : 'Delete'}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+          
+          {/* Past Sprints Card */}
           <Card className="mb-6">
             <CardContent className="p-6">
               <h2 className="text-xl font-semibold mb-2">Past Sprints</h2>
@@ -357,93 +465,6 @@ const ProjectPage = () => {
               )}
             </CardContent>
           </Card>
-        </div>
-        
-        <div>
-          <div className="mb-6">
-            {projectId && <ProductBacklog projectId={projectId} onRefresh={handleRefresh} />}
-          </div>
-          
-          <Card className="mb-6">
-            <CardContent className="p-6">
-              <h2 className="text-xl font-semibold mb-4 flex items-center">
-                <Users className="mr-2 h-5 w-5" /> Team Members
-              </h2>
-              
-              <div className="space-y-4 mb-6">
-                {Object.values(userProfiles).map((profile) => (
-                  <div key={profile.id} className="flex items-center">
-                    <Avatar className="h-8 w-8 mr-3">
-                      <AvatarFallback>{getInitials(profile.name)}</AvatarFallback>
-                    </Avatar>
-                    <span>{profile.name}</span>
-                  </div>
-                ))}
-              </div>
-              
-              <Button variant="outline" className="w-full">
-                <Plus className="mr-2 h-4 w-4" />
-                Invite Member
-              </Button>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-6">
-              <h2 className="text-xl font-semibold mb-4 flex items-center">
-                <BarChart className="mr-2 h-5 w-5" /> Project Stats
-              </h2>
-              
-              <div className="space-y-4">
-                <div className="flex justify-between">
-                  <span>Total Sprints</span>
-                  <span className="font-semibold">{projectStats.totalSprints}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Total Tasks</span>
-                  <span className="font-semibold">{projectStats.totalTasks}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Completion Rate</span>
-                  <span className="font-semibold">{projectStats.completionRate}%</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Team Size</span>
-                  <span className="font-semibold">{projectStats.teamSize}</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <div className="mt-6">
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="destructive" className="w-full">
-                  <Trash className="mr-2 h-4 w-4" />
-                  Delete Project
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This action cannot be undone. This will permanently delete the project
-                    "{project.name}" and all its associated sprints and tasks.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={handleDeleteProject}
-                    className="bg-red-600 hover:bg-red-700"
-                    disabled={isDeleting}
-                  >
-                    {isDeleting ? 'Deleting...' : 'Delete'}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
         </div>
       </div>
       
