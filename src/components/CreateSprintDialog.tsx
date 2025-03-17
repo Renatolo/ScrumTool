@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -5,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Sprint } from "@/types/sprint";
 import { useAuth } from "@/contexts/AuthContext";
-import { createSprint } from "@/lib/supabase/sprints";
+import { createSprint, fetchProjectSprints } from "@/lib/supabase/sprints";
 import { useToast } from "@/hooks/use-toast";
 
 interface CreateSprintDialogProps {
@@ -15,6 +16,7 @@ interface CreateSprintDialogProps {
   projectId: string;
   hasActiveSprint?: boolean;
   activeSprintId?: string;
+  existingSprints?: Sprint[];
 }
 
 const CreateSprintDialog = ({ 
@@ -23,7 +25,8 @@ const CreateSprintDialog = ({
   onCreateSprint, 
   projectId, 
   hasActiveSprint = false,
-  activeSprintId = ''
+  activeSprintId = '',
+  existingSprints = []
 }: CreateSprintDialogProps) => {
   const [name, setName] = useState("");
   const [startDate, setStartDate] = useState("");
@@ -33,7 +36,7 @@ const CreateSprintDialog = ({
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const validateDates = () => {
+  const validateDates = async () => {
     setDateError("");
 
     if (!startDate || !endDate) {
@@ -51,9 +54,19 @@ const CreateSprintDialog = ({
       return false;
     }
 
-    if (start < today) {
-      setDateError("Start date must be today or a future date");
-      return false;
+    // Check for existing sprints with the same start date
+    if (existingSprints.length > 0) {
+      const existingStartDates = existingSprints.map(sprint => {
+        const sprintStartDate = new Date(sprint.startDate);
+        sprintStartDate.setHours(0, 0, 0, 0);
+        return sprintStartDate.getTime();
+      });
+
+      start.setHours(0, 0, 0, 0);
+      if (existingStartDates.includes(start.getTime())) {
+        setDateError("A sprint with this start date already exists");
+        return false;
+      }
     }
 
     if (end < start) {
@@ -67,7 +80,7 @@ const CreateSprintDialog = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!validateDates()) {
+    if (!await validateDates()) {
       return;
     }
 
@@ -88,6 +101,14 @@ const CreateSprintDialog = ({
     try {
       setIsSubmitting(true);
 
+      // Determine if this is a current sprint (starts today) or future sprint
+      const start = new Date(startDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      start.setHours(0, 0, 0, 0);
+      
+      const isCurrent = start.getTime() === today.getTime();
+
       const newSprintData = {
         name,
         startDate,
@@ -98,9 +119,10 @@ const CreateSprintDialog = ({
       };
 
       console.log('Creating new sprint with data:', newSprintData);
+      console.log('Is current sprint:', isCurrent);
 
-      // createSprint now handles the deletion of existing sprints internally
-      const newSprint = await createSprint(newSprintData);
+      // Only delete existing active sprint if this is a current sprint
+      const newSprint = await createSprint(newSprintData, isCurrent);
 
       // Notify parent component of new sprint
       onCreateSprint(newSprint);
@@ -115,9 +137,9 @@ const CreateSprintDialog = ({
 
       toast({
         title: "Success",
-        description: hasActiveSprint 
+        description: isCurrent && hasActiveSprint 
           ? "Previous sprint replaced with new sprint" 
-          : "Sprint created successfully"
+          : `Sprint "${name}" created successfully`
       });
     } catch (error) {
       console.error("Error creating sprint:", error);
@@ -149,7 +171,7 @@ const CreateSprintDialog = ({
             Add a new sprint to your project. Enter the details below.
             {hasActiveSprint && (
               <p className="mt-2 text-orange-500">
-                Note: Creating a new sprint will replace the current active sprint.
+                Note: Creating a sprint with today's start date will replace the current active sprint.
               </p>
             )}
           </DialogDescription>
