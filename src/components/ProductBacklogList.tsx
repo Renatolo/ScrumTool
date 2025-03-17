@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -124,8 +123,7 @@ const ProductBacklogList = ({ projectId }: ProductBacklogListProps) => {
 
       await updateTask(updatedTask);
       
-      // Remove the task from the backlog list
-      setTasks(tasks.filter(task => task.id !== taskId));
+      fetchTasks();
       
       toast({
         title: "Task moved",
