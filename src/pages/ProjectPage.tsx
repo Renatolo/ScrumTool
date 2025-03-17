@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Home, Trash, Users, BarChart, LayoutDashboard } from "lucide-react";
+import { Plus, Trash, Users, BarChart, LayoutDashboard } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { fetchProjects } from "@/lib/supabase/projects";
 import { fetchProjectSprints } from "@/lib/supabase/sprints";
@@ -35,6 +35,7 @@ const ProjectPage = () => {
   const [project, setProject] = useState<Project | null>(null);
   const [sprints, setSprints] = useState<Sprint[]>([]);
   const [activeSprint, setActiveSprint] = useState<Sprint | null>(null);
+  const [futureSprints, setFutureSprints] = useState<Sprint[]>([]);
   const [pastSprints, setPastSprints] = useState<Sprint[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [userProfiles, setUserProfiles] = useState<Record<string, { name: string; id: string }>>({});
@@ -116,16 +117,34 @@ const ProjectPage = () => {
   
   const updateSprintCategories = (sprintList: Sprint[]) => {
     const today = new Date();
+    today.setHours(0, 0, 0, 0);
     
-    const active = sprintList.find(s => 
-      new Date(s.startDate) <= today && new Date(s.endDate) >= today
-    ) || null;
+    const current = sprintList.find(s => {
+      const startDate = new Date(s.startDate);
+      startDate.setHours(0, 0, 0, 0);
+      return startDate.getTime() === today.getTime();
+    });
     
-    const past = sprintList.filter(s => 
-      new Date(s.endDate) < today
-    );
+    const active = current || sprintList.find(s => {
+      const startDate = new Date(s.startDate);
+      const endDate = new Date(s.endDate);
+      startDate.setHours(0, 0, 0, 0);
+      return startDate < today && endDate >= today;
+    }) || null;
+    
+    const future = sprintList.filter(s => {
+      const startDate = new Date(s.startDate);
+      startDate.setHours(0, 0, 0, 0);
+      return startDate > today;
+    }).sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+    
+    const past = sprintList.filter(s => {
+      const endDate = new Date(s.endDate);
+      return endDate < today;
+    });
     
     setActiveSprint(active);
+    setFutureSprints(future);
     setPastSprints(past);
     
     if (active) {
@@ -145,41 +164,19 @@ const ProjectPage = () => {
   const handleSprintCreated = (newSprint: Sprint) => {
     console.log('New sprint created:', newSprint);
     
-    setSprints(prevSprints => {
-      const nonConflictingSprints = prevSprints.filter(s => 
-        new Date(s.endDate) < new Date(newSprint.startDate) ||
-        new Date(s.startDate) > new Date(newSprint.endDate)
-      );
-      
-      return [...nonConflictingSprints, newSprint];
-    });
-    
-    const today = new Date();
-    const startDate = new Date(newSprint.startDate);
-    const endDate = new Date(newSprint.endDate);
-    
-    if (startDate <= today && endDate >= today) {
-      setActiveSprint(newSprint);
-      loadSprintTasks(newSprint.id);
+    if (projectId) {
+      loadProject();
     }
-    
-    setPastSprints(prev => {
-      const newPastSprints = [...prev];
-      if (endDate < today) {
-        newPastSprints.push(newSprint);
-      }
-      return newPastSprints;
-    });
-    
-    setProjectStats(prev => ({
-      ...prev,
-      totalSprints: prev.totalSprints + 1
-    }));
     
     toast({
       title: 'Success',
       description: 'Sprint created successfully',
     });
+  };
+
+  const handleSprintDeleted = () => {
+    console.log('Sprint deleted, refreshing project data');
+    loadProject();
   };
 
   const handleGoHome = () => {
@@ -313,13 +310,11 @@ const ProjectPage = () => {
       )}
       
       <div className="grid md:grid-cols-3 gap-6">
-        {/* Product Backlog - Left Column */}
         <div>
           <div className="mb-6">
             {projectId && <ProductBacklog projectId={projectId} onRefresh={handleRefresh} />}
           </div>
           
-          {/* Team Members Card - Moved below Product Backlog */}
           <Card className="mb-6">
             <CardContent className="p-6">
               <h2 className="text-xl font-semibold mb-4 flex items-center">
@@ -345,9 +340,22 @@ const ProjectPage = () => {
           </Card>
         </div>
         
-        {/* Sprints - Middle and Right Columns */}
         <div className="md:col-span-2">
-          {/* Current Sprint Card */}
+          {futureSprints.length > 0 && (
+            <Card className="mb-6">
+              <CardContent className="p-6">
+                <h2 className="text-xl font-semibold mb-2">Future Sprints</h2>
+                <p className="text-muted-foreground mb-6">Upcoming sprints scheduled for the future</p>
+                
+                <SprintList 
+                  sprints={futureSprints} 
+                  projectId={projectId} 
+                  onSprintDeleted={handleSprintDeleted}
+                />
+              </CardContent>
+            </Card>
+          )}
+          
           <Card className="mb-6">
             <CardContent className="p-6">
               <h2 className="text-xl font-semibold mb-2">Current Sprint</h2>
@@ -377,7 +385,6 @@ const ProjectPage = () => {
             </CardContent>
           </Card>
           
-          {/* Project Stats Card - Moved above Past Sprints */}
           <div className="grid md:grid-cols-2 gap-6 mb-6">
             <Card>
               <CardContent className="p-6">
@@ -406,7 +413,6 @@ const ProjectPage = () => {
               </CardContent>
             </Card>
             
-            {/* Delete Project - Moved to right side */}
             <div className="flex flex-col">
               <Card className="flex-1">
                 <CardContent className="p-6 flex flex-col h-full">
@@ -450,14 +456,17 @@ const ProjectPage = () => {
             </div>
           </div>
           
-          {/* Past Sprints Card */}
           <Card className="mb-6">
             <CardContent className="p-6">
               <h2 className="text-xl font-semibold mb-2">Past Sprints</h2>
               <p className="text-muted-foreground mb-4">View completed sprints and their results</p>
               
               {pastSprints.length > 0 ? (
-                <SprintList sprints={pastSprints} projectId={projectId} />
+                <SprintList 
+                  sprints={pastSprints} 
+                  projectId={projectId} 
+                  onSprintDeleted={handleSprintDeleted}
+                />
               ) : (
                 <div className="text-center py-8">
                   <p className="text-muted-foreground">No past sprints available</p>
@@ -476,6 +485,7 @@ const ProjectPage = () => {
           projectId={projectId}
           hasActiveSprint={activeSprint !== null}
           activeSprintId={activeSprint?.id}
+          existingSprints={sprints}
         />
       )}
     </div>
