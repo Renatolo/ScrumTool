@@ -34,8 +34,7 @@ export async function fetchSprints(userId: string) {
  * Creates a new sprint
  */
 export async function createSprint(sprint: Omit<Sprint, 'id'> & { userId: string }) {
-
-  // **Batch delete all existing sprints** for this project
+  // First delete all existing sprints for this project
   const { error: deleteError } = await supabase
     .from('sprints')
     .delete()
@@ -67,8 +66,6 @@ export async function createSprint(sprint: Omit<Sprint, 'id'> & { userId: string
     user_id: sprint.userId,
     project_id: sprint.projectId
   };
-
-  
 
   // Insert new sprint
   const { data, error } = await supabase
@@ -157,31 +154,6 @@ export async function deleteSprint(id: string) {
   } catch (error) {
     console.error('Error in deleteSprint:', error);
     return false;
-  }
-}
-
-/**
- * Replaces the current active sprint with a new one
- */
-export async function replaceActiveSprint(currentSprintId: string, newSprint: Omit<Sprint, 'id'> & { userId: string }) {
-  const startDate = new Date(newSprint.startDate);
-  const endDate = new Date(newSprint.endDate);
-
-  if (endDate <= startDate) {
-    throw new Error('End date must be after start date');
-  }
-
-  console.log('Replacing active sprint:', currentSprintId);
-
-  try {
-    // Delete current sprint
-    await deleteSprint(currentSprintId);
-
-    // Create new sprint
-    return await createSprint(newSprint);
-  } catch (error) {
-    console.error('Error replacing sprint:', error);
-    throw error;
   }
 }
 
