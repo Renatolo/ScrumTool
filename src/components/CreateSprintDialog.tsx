@@ -1,11 +1,5 @@
 import { useState } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +7,16 @@ import { Sprint } from "@/types/sprint";
 import { useAuth } from "@/contexts/AuthContext";
 import { createSprint } from "@/lib/supabase/sprints";
 import { useToast } from "@/hooks/use-toast";
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface CreateSprintDialogProps {
   open: boolean;
@@ -23,13 +27,13 @@ interface CreateSprintDialogProps {
   activeSprintId?: string;
 }
 
-const CreateSprintDialog = ({
-  open,
-  onClose,
-  onCreateSprint,
-  projectId,
+const CreateSprintDialog = ({ 
+  open, 
+  onClose, 
+  onCreateSprint, 
+  projectId, 
   hasActiveSprint = false,
-  activeSprintId = "",
+  activeSprintId = ''
 }: CreateSprintDialogProps) => {
   const [name, setName] = useState("");
   const [startDate, setStartDate] = useState("");
@@ -89,9 +93,8 @@ const CreateSprintDialog = ({
 
     // If there's an active sprint, show the confirmation dialog
     if (hasActiveSprint) {
-      //setShowConfirmDialog(true);
-      //return;
-      await createNewSprint();
+      setShowConfirmDialog(true);
+      return;
     }
 
     // If no active sprint, create the sprint directly
@@ -108,10 +111,10 @@ const CreateSprintDialog = ({
         endDate,
         userId: user!.id,
         projectId,
-        tasks:,
+        tasks: []
       };
 
-      console.log("Creating new sprint with data:", newSprintData);
+      console.log('Creating new sprint with data:', newSprintData);
 
       // We don't need separate logic for replacing sprints anymore
       // since createSprint now handles the deletion of existing sprints
@@ -130,18 +133,15 @@ const CreateSprintDialog = ({
 
       toast({
         title: "Success",
-        description: hasActiveSprint
-          ? "Previous sprint replaced successfully"
+        description: hasActiveSprint 
+          ? "Previous sprint replaced successfully" 
           : "Sprint created successfully",
       });
     } catch (error) {
       console.error("Error creating sprint:", error);
       toast({
         title: "Error",
-        description:
-          error instanceof Error
-            ? error.message
-            : "Failed to create sprint. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to create sprint. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -160,7 +160,6 @@ const CreateSprintDialog = ({
     setShowConfirmDialog(false);
     onClose();
   };
-
 
   return (
     <>
@@ -207,12 +206,7 @@ const CreateSprintDialog = ({
               )}
             </div>
             <div className="flex justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleCloseDialog}
-                disabled={isSubmitting}
-              >
+              <Button type="button" variant="outline" onClick={handleCloseDialog} disabled={isSubmitting}>
                 Cancel
               </Button>
               <Button type="submit" disabled={isSubmitting}>
@@ -224,28 +218,22 @@ const CreateSprintDialog = ({
       </Dialog>
 
       {/* Confirmation Dialog */}
-      <Dialog open={showConfirmDialog} onOpenChange={handleCancelConfirm}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Replace Active Sprint?</DialogTitle>
-            <DialogDescription>
-              There is already an active sprint for this project. Creating a new
-              sprint will replace the current one as the active sprint. The
-              current sprint will be deleted. Are you sure you want to continue?
-            </DialogDescription>
-          </DialogHeader>
-          <div>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleCancelConfirm}
-            >
-              Cancel
-            </Button>
-            <Button onClick={handleConfirm}>Replace Current Sprint</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Replace Active Sprint?</AlertDialogTitle>
+            <AlertDialogDescription>
+              There is already an active sprint for this project. Creating a new sprint will replace the current one as the active sprint. The current sprint will be deleted. Are you sure you want to continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowConfirmDialog(false)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={createNewSprint}>
+              Replace Current Sprint
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };
