@@ -420,7 +420,7 @@ const ProjectPage = () => {
                   
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="destructive" className="w-full mt-auto">
+                      <Button variant="destructive" className="w-full mt-auto bg-red-600 hover:bg-red-700 text-white">
                         <Trash className="mr-2 h-4 w-4" />
                         Delete Project
                       </Button>

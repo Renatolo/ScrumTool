@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -42,11 +41,9 @@ const ProductBacklog = ({ projectId, onRefresh }: ProductBacklogProps) => {
     try {
       setIsLoading(true);
       const backlogTasks = await fetchProductBacklog(projectId);
-      // Filter for tasks associated with current project
       const projectTasks = backlogTasks.filter(task => task.projectId === projectId);
       setTasks(projectTasks);
       
-      // Load sprints for the project
       const projectSprints = await fetchProjectSprints(projectId);
       setSprints(projectSprints);
     } catch (error) {
@@ -69,7 +66,6 @@ const ProductBacklog = ({ projectId, onRefresh }: ProductBacklogProps) => {
     if (!user) return;
     
     try {
-      // Save task to Supabase
       const savedTask = await import('@/lib/supabase/tasks').then(
         module => module.createTask({
           ...task,
@@ -112,7 +108,6 @@ const ProductBacklog = ({ projectId, onRefresh }: ProductBacklogProps) => {
     try {
       await deleteTask(taskId);
       
-      // Remove the task from the state
       setTasks(prev => prev.filter(task => task.id !== taskId));
       
       toast({
@@ -155,7 +150,6 @@ const ProductBacklog = ({ projectId, onRefresh }: ProductBacklogProps) => {
       
       await updateTask(updatedTask);
       
-      // Remove the task from the backlog state
       setTasks(prev => prev.filter(task => task.id !== taskId));
       
       toast({
@@ -266,10 +260,6 @@ const ProductBacklog = ({ projectId, onRefresh }: ProductBacklogProps) => {
             <ListChecks className="h-12 w-12 text-muted-foreground mb-4 mx-auto" />
             <h3 className="text-lg font-medium mb-2">No tasks in backlog</h3>
             <p className="text-muted-foreground mb-4">Add tasks to your product backlog to start planning your sprints</p>
-            <Button onClick={() => setShowCreateTaskDialog(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add First Task
-            </Button>
           </div>
         )}
       </CardContent>

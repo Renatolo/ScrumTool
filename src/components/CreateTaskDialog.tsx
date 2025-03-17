@@ -186,10 +186,10 @@ const CreateTaskDialog = ({ open, onOpenChange, userId, projectId, onTaskCreated
             </Select>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="points">Story Points</Label>
+            <Label htmlFor="points">Estimated Effort</Label>
             <Select value={points} onValueChange={setPoints}>
               <SelectTrigger>
-                <SelectValue placeholder="Select points" />
+                <SelectValue placeholder="Select effort" />
               </SelectTrigger>
               <SelectContent>
                 {[1, 2, 3, 5, 8, 13].map((point) => (
