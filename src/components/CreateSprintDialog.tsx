@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -8,16 +7,6 @@ import { Sprint } from "@/types/sprint";
 import { useAuth } from "@/contexts/AuthContext";
 import { createSprint } from "@/lib/supabase/sprints";
 import { useToast } from "@/hooks/use-toast";
-import { 
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 
 interface CreateSprintDialogProps {
   open: boolean;
@@ -40,7 +29,6 @@ const CreateSprintDialog = ({
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [dateError, setDateError] = useState("");
   const { user } = useAuth();
   const { toast } = useToast();
@@ -92,13 +80,7 @@ const CreateSprintDialog = ({
       return;
     }
 
-    // If there's an active sprint, show the confirmation dialog
-    if (hasActiveSprint) {
-      setShowConfirmDialog(true);
-      return;
-    }
-
-    // If no active sprint, create the sprint directly
+    // Create sprint directly without confirmation
     await createNewSprint();
   };
 
@@ -117,8 +99,7 @@ const CreateSprintDialog = ({
 
       console.log('Creating new sprint with data:', newSprintData);
 
-      // We don't need separate logic for replacing sprints anymore
-      // since createSprint now handles the deletion of existing sprints
+      // createSprint now handles the deletion of existing sprints internally
       const newSprint = await createSprint(newSprintData);
 
       // Notify parent component of new sprint
@@ -135,7 +116,7 @@ const CreateSprintDialog = ({
       toast({
         title: "Success",
         description: hasActiveSprint 
-          ? "Previous sprint replaced successfully" 
+          ? "Previous sprint replaced with new sprint" 
           : "Sprint created successfully"
       });
     } catch (error) {
@@ -147,8 +128,6 @@ const CreateSprintDialog = ({
       });
     } finally {
       setIsSubmitting(false);
-      // Make sure to close the confirmation dialog too
-      setShowConfirmDialog(false);
     }
   };
 
@@ -158,84 +137,68 @@ const CreateSprintDialog = ({
     setStartDate("");
     setEndDate("");
     setDateError("");
-    setShowConfirmDialog(false);
     onClose();
   };
 
   return (
-    <>
-      <Dialog open={open} onOpenChange={handleCloseDialog}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Create New Sprint</DialogTitle>
-            <DialogDescription>
-              Add a new sprint to your project. Enter the details below.
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Sprint Name</Label>
-              <Input
-                id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Enter sprint name"
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="startDate">Start Date</Label>
-              <Input
-                id="startDate"
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="endDate">End Date</Label>
-              <Input
-                id="endDate"
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                required
-              />
-              {dateError && (
-                <p className="text-sm text-destructive mt-1">{dateError}</p>
-              )}
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={handleCloseDialog} disabled={isSubmitting}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Creating..." : "Create Sprint"}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Confirmation Dialog */}
-      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Replace Active Sprint?</AlertDialogTitle>
-            <AlertDialogDescription>
-              There is already an active sprint for this project. Creating a new sprint will replace the current one as the active sprint. The current sprint will be deleted. Are you sure you want to continue?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setShowConfirmDialog(false)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={createNewSprint}>
-              Replace Current Sprint
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
+    <Dialog open={open} onOpenChange={handleCloseDialog}>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>Create New Sprint</DialogTitle>
+          <DialogDescription>
+            Add a new sprint to your project. Enter the details below.
+            {hasActiveSprint && (
+              <p className="mt-2 text-orange-500">
+                Note: Creating a new sprint will replace the current active sprint.
+              </p>
+            )}
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="name">Sprint Name</Label>
+            <Input
+              id="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Enter sprint name"
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="startDate">Start Date</Label>
+            <Input
+              id="startDate"
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="endDate">End Date</Label>
+            <Input
+              id="endDate"
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              required
+            />
+            {dateError && (
+              <p className="text-sm text-destructive mt-1">{dateError}</p>
+            )}
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={handleCloseDialog} disabled={isSubmitting}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Creating..." : "Create Sprint"}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 };
 
