@@ -46,7 +46,7 @@ const ProjectPage = () => {
   });
   const [loading, setLoading] = useState(true);
   const [isCreateSprintOpen, setIsCreateSprintOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(isDeleting);
+  const [isDeleting, setIsDeleting] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
