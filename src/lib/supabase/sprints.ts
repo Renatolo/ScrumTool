@@ -33,27 +33,49 @@ export async function fetchSprints(userId: string) {
 /**
  * Creates a new sprint
  */
-export async function createSprint(sprint: Omit<Sprint, 'id'> & { userId: string }) {
-  // First delete all existing sprints for this project
-  const { error: deleteError } = await supabase
-    .from('sprints')
-    .delete()
-    .eq('project_id', sprint.projectId);
-
-  if (deleteError) {
-    console.error('Error deleting existing sprints:', deleteError);
-    throw deleteError;
+export async function createSprint(
+  sprint: Omit<Sprint, 'id'> & { userId: string }, 
+  isCurrent: boolean = false
+) {
+  console.log('Creating sprint with isCurrent:', isCurrent);
+  
+  // If this is a current sprint, delete any existing current sprint
+  if (isCurrent) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Fetch existing sprints to find current sprint
+    const { data: existingSprints } = await supabase
+      .from('sprints')
+      .select('id, start_date')
+      .eq('project_id', sprint.projectId);
+    
+    if (existingSprints && existingSprints.length > 0) {
+      // Find the current sprint (if any)
+      const currentSprint = existingSprints.find(s => {
+        const startDate = new Date(s.start_date);
+        startDate.setHours(0, 0, 0, 0);
+        return startDate.getTime() === today.getTime();
+      });
+      
+      // Delete the current sprint if found
+      if (currentSprint) {
+        console.log('Deleting existing current sprint:', currentSprint.id);
+        const { error: deleteError } = await supabase
+          .from('sprints')
+          .delete()
+          .eq('id', currentSprint.id);
+        
+        if (deleteError) {
+          console.error('Error deleting existing sprint:', deleteError);
+          throw deleteError;
+        }
+      }
+    }
   }
   
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
   const startDate = new Date(sprint.startDate);
   const endDate = new Date(sprint.endDate);
-
-  if (startDate < today) {
-    throw new Error('Start date must be today or in the future');
-  }
 
   if (endDate <= startDate) {
     throw new Error('End date must be after start date');
