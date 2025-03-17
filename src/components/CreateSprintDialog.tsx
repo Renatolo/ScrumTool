@@ -219,22 +219,28 @@ const CreateSprintDialog = ({
       </Dialog>
 
       {/* Confirmation Dialog */}
-      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Replace Active Sprint?</AlertDialogTitle>
-            <AlertDialogDescription>
-              There is already an active sprint for this project. Creating a new sprint will replace the current one as the active sprint. The current sprint will be deleted. Are you sure you want to continue?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setShowConfirmDialog(false)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => createNewSprint()}>
-              Replace Current Sprint
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <Dialog open={showConfirmDialog} onOpenChange={handleCancelConfirm}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Replace Active Sprint?</DialogTitle>
+            <DialogDescription>
+              There is already an active sprint for this project. Creating a new
+              sprint will replace the current one as the active sprint. The
+              current sprint will be deleted. Are you sure you want to continue?
+            </DialogDescription>
+          </DialogHeader>
+          <div>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleCancelConfirm}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleConfirm}>Replace Current Sprint</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
