@@ -1,6 +1,11 @@
-
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,16 +13,6 @@ import { Sprint } from "@/types/sprint";
 import { useAuth } from "@/contexts/AuthContext";
 import { createSprint } from "@/lib/supabase/sprints";
 import { useToast } from "@/hooks/use-toast";
-import { 
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 
 interface CreateSprintDialogProps {
   open: boolean;
@@ -28,13 +23,13 @@ interface CreateSprintDialogProps {
   activeSprintId?: string;
 }
 
-const CreateSprintDialog = ({ 
-  open, 
-  onClose, 
-  onCreateSprint, 
-  projectId, 
+const CreateSprintDialog = ({
+  open,
+  onClose,
+  onCreateSprint,
+  projectId,
   hasActiveSprint = false,
-  activeSprintId = ''
+  activeSprintId = "",
 }: CreateSprintDialogProps) => {
   const [name, setName] = useState("");
   const [startDate, setStartDate] = useState("");
@@ -47,42 +42,42 @@ const CreateSprintDialog = ({
 
   const validateDates = () => {
     setDateError("");
-    
+
     if (!startDate || !endDate) {
       setDateError("Both start and end dates are required");
       return false;
     }
-    
+
     const start = new Date(startDate);
     const end = new Date(endDate);
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Set to beginning of today
-    
+
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
       setDateError("Invalid date format");
       return false;
     }
-    
+
     if (start < today) {
       setDateError("Start date must be today or a future date");
       return false;
     }
-    
+
     if (end < start) {
       setDateError("End date must be after start date");
       return false;
     }
-    
+
     return true;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateDates()) {
       return;
     }
-    
+
     if (!user) {
       toast({
         title: "Error",
@@ -91,13 +86,13 @@ const CreateSprintDialog = ({
       });
       return;
     }
-    
+
     // If there's an active sprint, show the confirmation dialog
     if (hasActiveSprint) {
       setShowConfirmDialog(true);
       return;
     }
-    
+
     // If no active sprint, create the sprint directly
     await createNewSprint();
   };
@@ -105,44 +100,47 @@ const CreateSprintDialog = ({
   const createNewSprint = async () => {
     try {
       setIsSubmitting(true);
-      
+
       const newSprintData = {
         name,
         startDate,
         endDate,
         userId: user!.id,
         projectId,
-        tasks: []
+        tasks:,
       };
-      
-      console.log('Creating new sprint with data:', newSprintData);
-      
+
+      console.log("Creating new sprint with data:", newSprintData);
+
       // We don't need separate logic for replacing sprints anymore
       // since createSprint now handles the deletion of existing sprints
       const newSprint = await createSprint(newSprintData);
-      
+
       // Notify parent component of new sprint
       onCreateSprint(newSprint);
-      
+
       // Reset form
       setName("");
       setStartDate("");
       setEndDate("");
-      
+
       // Close dialog
       onClose();
-      
+
       toast({
         title: "Success",
-        description: hasActiveSprint 
-          ? "Previous sprint replaced successfully" 
+        description: hasActiveSprint
+          ? "Previous sprint replaced successfully"
           : "Sprint created successfully",
       });
     } catch (error) {
       console.error("Error creating sprint:", error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to create sprint. Please try again.",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to create sprint. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -160,6 +158,14 @@ const CreateSprintDialog = ({
     setDateError("");
     setShowConfirmDialog(false);
     onClose();
+  };
+
+  const handleConfirm = () => {
+    createNewSprint(); // Call createNewSprint on confirmation
+  };
+
+  const handleCancelConfirm = () => {
+    setShowConfirmDialog(false); // Close confirmation dialog
   };
 
   return (
@@ -207,7 +213,12 @@ const CreateSprintDialog = ({
               )}
             </div>
             <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={handleCloseDialog} disabled={isSubmitting}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCloseDialog}
+                disabled={isSubmitting}
+              >
                 Cancel
               </Button>
               <Button type="submit" disabled={isSubmitting}>
