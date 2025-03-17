@@ -145,8 +145,8 @@ export async function fetchProductBacklog(projectId: string) {
   const { data, error } = await supabase
     .from('tasks')
     .select('*')
-    .eq('project_id', projectId)
-    .is('sprint_id', null); // Only fetch tasks with no sprint_id (not assigned to any sprint)
+    .eq('project_id', projectId);
+    // Removed the .is('sprint_id', null) filter to include all tasks
   
   if (error) {
     console.error('Error fetching product backlog:', error);
