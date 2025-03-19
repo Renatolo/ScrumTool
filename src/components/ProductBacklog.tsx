@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -6,7 +5,7 @@ import { Task } from "@/types/task";
 import { Sprint } from "@/types/sprint";
 import { fetchProductBacklog, updateTask, deleteTask } from "@/lib/supabase/tasks";
 import { fetchProjectSprints } from "@/lib/supabase/sprints";
-import { Plus, ListChecks, Edit, ArrowRight, Trash } from "lucide-react";
+import { Plus, ListChecks, Edit, ArrowRight, Trash, Grab } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -20,13 +19,89 @@ import EditTaskDialog from "./EditTaskDialog";
 import MoveTaskDialog from "./MoveTaskDialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useDraggable } from "@dnd-kit/core";
 
 interface ProductBacklogProps {
   projectId: string;
   onRefresh?: () => void;
+  activeSprint?: Sprint | null;
 }
 
-const ProductBacklog = ({ projectId, onRefresh }: ProductBacklogProps) => {
+const DraggableTaskItem = ({ task, onEdit, onMove, onDelete, getPriorityColor }: { 
+  task: Task, 
+  onEdit: (task: Task) => void, 
+  onMove: (task: Task) => void, 
+  onDelete: (taskId: string) => void,
+  getPriorityColor: (priority: string) => string
+}) => {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: `product-backlog-task-${task.id}`,
+    data: {
+      type: 'product-backlog-task',
+      task
+    }
+  });
+
+  const style = transform ? {
+    transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+    zIndex: isDragging ? 1000 : 1,
+    opacity: isDragging ? 0.5 : 1,
+    position: isDragging ? 'relative' : undefined,
+  } as React.CSSProperties : undefined;
+
+  return (
+    <div 
+      ref={setNodeRef} 
+      style={style} 
+      {...attributes}
+      className="p-3 border rounded-md transition-colors mb-2 cursor-grab active:cursor-grabbing"
+    >
+      <div className="flex justify-between items-start mb-1">
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <h4 className="font-medium truncate max-w-[50ch]" {...listeners}>{task.title}</h4>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{task.title}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        <div className={`text-xs font-medium px-2 py-1 rounded-full bg-muted ${getPriorityColor(task.priority)}`}>
+          {task.priority}
+        </div>
+      </div>
+      {task.description && (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <p className="text-sm text-muted-foreground mb-2 line-clamp-2">{task.description}</p>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className="max-w-xs">{task.description}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
+      <div className="flex justify-between items-center text-xs text-muted-foreground">
+        <span>{task.points} {task.points === 1 ? 'point' : 'points'}</span>
+        <div className="flex space-x-1">
+          <Button onClick={() => onEdit(task)} size="sm" variant="ghost" className="h-8 w-8 p-0">
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button onClick={() => onMove(task)} size="sm" variant="ghost" className="h-8 w-8 p-0 text-blue-500">
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+          <Button onClick={() => onDelete(task.id)} size="sm" variant="ghost" className="h-8 w-8 p-0 text-red-500">
+            <Trash className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const ProductBacklog = ({ projectId, onRefresh, activeSprint }: ProductBacklogProps) => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [sprints, setSprints] = useState<Sprint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -210,54 +285,14 @@ const ProductBacklog = ({ projectId, onRefresh }: ProductBacklogProps) => {
           <ScrollArea className="h-[calc(100vh-300px)]">
             <div className="space-y-2 pr-4">
               {tasks.map((task) => (
-                <div 
+                <DraggableTaskItem 
                   key={task.id} 
-                  className="p-3 border rounded-md transition-colors"
-                >
-                  <div className="flex justify-between items-start mb-1">
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <h4 className="font-medium truncate max-w-[50ch]">{task.title}</h4>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>{task.title}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                    <div className={`text-xs font-medium px-2 py-1 rounded-full bg-muted ${getPriorityColor(task.priority)}`}>
-                      {task.priority}
-                    </div>
-                  </div>
-                  {task.description && (
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <p className="text-sm text-muted-foreground mb-2 line-clamp-2">{task.description}</p>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p className="max-w-xs">{task.description}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  )}
-                  <div className="flex justify-between items-center text-xs text-muted-foreground">
-                    <span>{task.points} {task.points === 1 ? 'point' : 'points'}</span>
-                    <div className="flex space-x-1">
-                      <Button onClick={() => handleEditTask(task)} size="sm" variant="ghost" className="h-8 w-8 p-0">
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      {sprints.length > 0 && (
-                        <Button onClick={() => handleMoveTask(task)} size="sm" variant="ghost" className="h-8 w-8 p-0 text-blue-500">
-                          <ArrowRight className="h-4 w-4" />
-                        </Button>
-                      )}
-                      <Button onClick={() => handleDeleteTask(task.id)} size="sm" variant="ghost" className="h-8 w-8 p-0 text-red-500">
-                        <Trash className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
+                  task={task}
+                  onEdit={handleEditTask}
+                  onMove={handleMoveTask}
+                  onDelete={handleDeleteTask}
+                  getPriorityColor={getPriorityColor}
+                />
               ))}
             </div>
           </ScrollArea>

@@ -312,7 +312,13 @@ const ProjectPage = () => {
       <div className="grid md:grid-cols-3 gap-6">
         <div>
           <div className="mb-6">
-            {projectId && <ProductBacklog projectId={projectId} onRefresh={handleRefresh} />}
+            {projectId && (
+              <ProductBacklog 
+                projectId={projectId} 
+                onRefresh={handleRefresh} 
+                activeSprint={activeSprint}
+              />
+            )}
           </div>
           
           <Card className="mb-6">

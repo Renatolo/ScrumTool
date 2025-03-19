@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+
+import { useEffect, useState, forwardRef, useImperativeHandle } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -74,7 +75,7 @@ const KanbanColumn = ({ title, tasks, onEdit, onDelete, columnId }: KanbanColumn
 };
 
 // Main Kanban Board Component
-const KanbanBoard = ({ sprintId }: KanbanBoardProps) => {
+const KanbanBoard = forwardRef(({ sprintId }: KanbanBoardProps, ref) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -90,6 +91,10 @@ const KanbanBoard = ({ sprintId }: KanbanBoardProps) => {
       activationConstraint: { distance: 8 }, // Slightly increased for better response
     })
   );
+
+  useImperativeHandle(ref, () => ({
+    refreshBoard: fetchTasks
+  }));
 
   useEffect(() => {
     if (sprintId) {
@@ -211,7 +216,7 @@ const KanbanBoard = ({ sprintId }: KanbanBoardProps) => {
   }
 
   return (
-    <div className="h-full">
+    <div className="h-full" id="kanban-board">
       <h2 className="text-xl font-semibold mb-4">Sprint Board</h2>
 
       <DndContext 
@@ -249,6 +254,8 @@ const KanbanBoard = ({ sprintId }: KanbanBoardProps) => {
       )}
     </div>
   );
-};
+});
+
+KanbanBoard.displayName = "KanbanBoard";
 
 export default KanbanBoard;

@@ -120,7 +120,7 @@ const SprintList = ({ sprints, projectId, title, onSprintDeleted }: SprintListPr
                 className="flex-1"
                 onClick={() => handleNavigateToSprint(sprint.id)}
               >
-                View Sprint <ChevronRight className="h-4 w-4 ml-2" />
+                View Sprint Board <ChevronRight className="h-4 w-4 ml-2" />
               </Button>
               
               <AlertDialog>
