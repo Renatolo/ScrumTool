@@ -89,6 +89,8 @@ export async function createProject(project: Omit<Project, 'id'> & { user_id: st
 export async function joinProject(code: string, userId: string) {
   try {
     // Find the project with the given code
+    console.log("DEBUG");
+    console.log(code);
     const { data, error } = await supabase
       .from('projects')
       .select('*')
