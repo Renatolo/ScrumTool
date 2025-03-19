@@ -1,9 +1,8 @@
-
 import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { fetchSprints } from "@/lib/supabase/sprints";
+import { fetchSprintById } from "@/lib/supabase/sprints";
 import { useToast } from "@/hooks/use-toast";
 import KanbanBoard from "@/components/KanbanBoard";
 import { ArrowLeft, CalendarClock } from "lucide-react";
@@ -26,9 +25,8 @@ const SprintPage = () => {
 
       try {
         setLoading(true);
-        // Fetch all sprints and find the one matching the ID
-        const sprints = await fetchSprints(user?.id || "");
-        const foundSprint = sprints.find(s => s.id === sprintId);
+        // Fetch the specific sprint by ID
+        const foundSprint = await fetchSprintById(sprintId);
         
         if (foundSprint) {
           setSprint(foundSprint);
@@ -52,7 +50,7 @@ const SprintPage = () => {
     };
 
     loadSprint();
-  }, [sprintId, user, toast]);
+  }, [sprintId, toast]);
 
   const calculateProgress = () => {
     if (!sprint) return 0;

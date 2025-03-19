@@ -1,33 +1,51 @@
 import { supabase } from './client';
 import { type Sprint } from '@/types/sprint';
+import { fetchProjects } from './projects';
 
 /**
- * Fetches all sprints for a user
+ * Fetches all sprints for a user (including those from projects they have access to)
  */
 export async function fetchSprints(userId: string) {
   console.time('fetchSprints');
   
-  const { data, error } = await supabase
-    .from('sprints')
-    .select('*')
-    .eq('user_id', userId);
-
-  if (error) {
-    console.error('Error fetching sprints:', error);
+  try {
+    // Get all projects the user has access to (both owned and as a member)
+    const accessibleProjects = await fetchProjects(userId);
+    
+    if (!accessibleProjects.length) {
+      console.log('No accessible projects found for user');
+      return [];
+    }
+    
+    const projectIds = accessibleProjects.map(project => project.id);
+    
+    // Fetch sprints for all accessible projects
+    const { data, error } = await supabase
+      .from('sprints')
+      .select('*')
+      .in('project_id', projectIds);
+    
+    if (error) {
+      console.error('Error fetching sprints:', error);
+      return [];
+    }
+    
+    const mappedSprints = data.map(sprint => ({
+      id: sprint.id,
+      name: sprint.name,
+      startDate: sprint.start_date ?? new Date().toISOString(),
+      endDate: sprint.end_date ?? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+      tasks: [],
+      projectId: sprint.project_id
+    }));
+    
+    console.timeEnd('fetchSprints');
+    return mappedSprints as Sprint[];
+  } catch (error) {
+    console.error('Error in fetchSprints:', error);
+    console.timeEnd('fetchSprints');
     return [];
   }
-
-  const mappedSprints = data.map(sprint => ({
-    id: sprint.id,
-    name: sprint.name,
-    startDate: sprint.start_date ?? new Date().toISOString(),
-    endDate: sprint.end_date ?? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-    tasks: [],
-    projectId: sprint.project_id
-  }));
-
-  console.timeEnd('fetchSprints');
-  return mappedSprints as Sprint[];
 }
 
 /**
@@ -207,4 +225,34 @@ export async function fetchProjectSprints(projectId: string) {
 
   console.timeEnd('fetchProjectSprints');
   return mappedSprints as Sprint[];
+}
+
+/**
+ * Fetches a specific sprint by ID
+ */
+export async function fetchSprintById(sprintId: string): Promise<Sprint | null> {
+  try {
+    const { data, error } = await supabase
+      .from('sprints')
+      .select('*')
+      .eq('id', sprintId)
+      .single();
+    
+    if (error) {
+      console.error('Error fetching sprint by ID:', error);
+      return null;
+    }
+    
+    return {
+      id: data.id,
+      name: data.name,
+      startDate: data.start_date,
+      endDate: data.end_date,
+      tasks: [],
+      projectId: data.project_id
+    } as Sprint;
+  } catch (error) {
+    console.error('Error in fetchSprintById:', error);
+    return null;
+  }
 }
