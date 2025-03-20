@@ -169,6 +169,22 @@ const CreateSprintDialog = ({
     onClose();
   };
 
+  // Clear date error when inputs change
+  const handleStartDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setStartDate(e.target.value);
+    if (dateError) setDateError("");
+  };
+
+  const handleEndDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEndDate(e.target.value);
+    if (dateError) setDateError("");
+  };
+
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setName(e.target.value);
+    if (dateError) setDateError("");
+  };
+
   return (
     <Dialog open={open} onOpenChange={handleCloseDialog}>
       <DialogContent className="sm:max-w-[425px]">
@@ -192,7 +208,7 @@ const CreateSprintDialog = ({
             <Input
               id="name"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={handleNameChange}
               placeholder="Enter sprint name"
               required
             />
@@ -203,7 +219,7 @@ const CreateSprintDialog = ({
               id="startDate"
               type="date"
               value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
+              onChange={handleStartDateChange}
               required
             />
           </div>
@@ -213,7 +229,7 @@ const CreateSprintDialog = ({
               id="endDate"
               type="date"
               value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
+              onChange={handleEndDateChange}
               required
             />
             {dateError && (

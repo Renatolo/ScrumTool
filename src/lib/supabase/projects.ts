@@ -128,6 +128,65 @@ export async function joinProject(code: string, userId: string) {
 }
 
 /**
+ * Invites a user to a project by email
+ * @param projectId - The project ID
+ * @param email - The email of the user to invite
+ * @returns Boolean indicating success
+ */
+export async function inviteUserByEmail(projectId: string, email: string) {
+  try {
+    // First check if user with this email exists
+    const { data: userData, error: userError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('email', email)
+      .single();
+    
+    if (userError) {
+      if (userError.code === 'PGRST116') {
+        throw new Error(`No user found with email ${email}`);
+      }
+      throw userError;
+    }
+    
+    if (!userData) {
+      throw new Error(`No user found with email ${email}`);
+    }
+    
+    const userId = userData.id;
+    
+    // Get the project to check if user is already a member
+    const { data: projectData, error: projectError } = await supabase
+      .from('projects')
+      .select('members')
+      .eq('id', projectId)
+      .single();
+    
+    if (projectError) throw projectError;
+    
+    // If user is already a member, no need to proceed
+    if (projectData.members && projectData.members.includes(userId)) {
+      throw new Error('User is already a member of this project');
+    }
+    
+    // Add user to project members
+    const updatedMembers = [...(projectData.members || []), userId];
+    
+    const { error: updateError } = await supabase
+      .from('projects')
+      .update({ members: updatedMembers })
+      .eq('id', projectId);
+      
+    if (updateError) throw updateError;
+    
+    return true;
+  } catch (error) {
+    console.error('Error inviting user:', error);
+    throw error;
+  }
+}
+
+/**
  * Deletes a project and its associated data
  * @param projectId - The project ID
  * @returns boolean indicating success

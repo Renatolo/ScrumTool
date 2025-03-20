@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { supabase } from "@/lib/supabase/client";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import InviteUserDialog from "@/components/InviteUserDialog";
 
 const ProjectPage = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -49,6 +50,7 @@ const ProjectPage = () => {
   const [isCreateSprintOpen, setIsCreateSprintOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const navigate = useNavigate();
+  const [isInviteUserOpen, setIsInviteUserOpen] = useState(false);
 
   useEffect(() => {
     const loadProject = async () => {
@@ -338,7 +340,7 @@ const ProjectPage = () => {
                 ))}
               </div>
               
-              <Button variant="outline" className="w-full">
+              <Button variant="outline" className="w-full" onClick={() => setIsInviteUserOpen(true)}>
                 <Plus className="mr-2 h-4 w-4" />
                 Invite Member
               </Button>
@@ -484,15 +486,24 @@ const ProjectPage = () => {
       </div>
       
       {user && projectId && (
-        <CreateSprintDialog 
-          open={isCreateSprintOpen} 
-          onClose={() => setIsCreateSprintOpen(false)} 
-          onCreateSprint={handleSprintCreated}
-          projectId={projectId}
-          hasActiveSprint={activeSprint !== null}
-          activeSprintId={activeSprint?.id}
-          existingSprints={sprints}
-        />
+        <>
+          <CreateSprintDialog 
+            open={isCreateSprintOpen} 
+            onClose={() => setIsCreateSprintOpen(false)} 
+            onCreateSprint={handleSprintCreated}
+            projectId={projectId}
+            hasActiveSprint={activeSprint !== null}
+            activeSprintId={activeSprint?.id}
+            existingSprints={sprints}
+          />
+          
+          <InviteUserDialog
+            open={isInviteUserOpen}
+            onClose={() => setIsInviteUserOpen(false)}
+            projectId={projectId}
+            onSuccess={handleRefresh}
+          />
+        </>
       )}
     </div>
   );
