@@ -1,3 +1,4 @@
+
 import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -5,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { fetchSprintById } from "@/lib/supabase/sprints";
 import { useToast } from "@/hooks/use-toast";
 import KanbanBoard from "@/components/KanbanBoard";
-import { ArrowLeft, CalendarClock } from "lucide-react";
+import { ArrowLeft, CalendarClock, AlertCircle } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
@@ -66,6 +67,29 @@ const SprintPage = () => {
     const daysElapsed = differenceInDays(today, startDate);
     
     return Math.min(100, Math.round((daysElapsed / totalDays) * 100));
+  };
+
+  const getDaysUntilEnd = () => {
+    if (!sprint) return 0;
+    
+    const endDate = new Date(sprint.endDate);
+    const today = new Date();
+    
+    if (today > endDate) return 0;
+    
+    return differenceInDays(endDate, today);
+  };
+
+  const getTimeRemainingText = () => {
+    const daysRemaining = getDaysUntilEnd();
+    
+    if (daysRemaining === 0) {
+      return "Sprint ends today";
+    } else if (daysRemaining === 1) {
+      return "1 day until end of sprint";
+    } else {
+      return `${daysRemaining} days until end of sprint`;
+    }
   };
 
   const handleBackToProject = () => {
@@ -130,7 +154,12 @@ const SprintPage = () => {
               <span>Sprint Progress</span>
               <span>{progress}%</span>
             </div>
-            <Progress value={progress} />
+            <Progress value={progress} className="mb-3" />
+            
+            <div className={`flex items-center text-sm font-medium ${getDaysUntilEnd() <= 2 ? "text-amber-600" : "text-blue-600"}`}>
+              <AlertCircle size={16} className="mr-1" />
+              {getTimeRemainingText()}
+            </div>
           </div>
         </CardContent>
       </Card>

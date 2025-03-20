@@ -36,6 +36,22 @@ const CreateSprintDialog = ({
   const { user } = useAuth();
   const { toast } = useToast();
 
+  const checkDateIntersection = (start: Date, end: Date) => {
+    if (!existingSprints || existingSprints.length === 0) return false;
+    
+    // Check if the new sprint dates intersect with any existing sprint
+    return existingSprints.some(sprint => {
+      const sprintStart = new Date(sprint.startDate);
+      const sprintEnd = new Date(sprint.endDate);
+      
+      // Check for any overlap between the ranges
+      return (
+        (start <= sprintEnd && end >= sprintStart) || 
+        (sprintStart <= end && sprintEnd >= start)
+      );
+    });
+  };
+
   const validateDates = async () => {
     setDateError("");
 
@@ -54,23 +70,14 @@ const CreateSprintDialog = ({
       return false;
     }
 
-    // Check for existing sprints with the same start date
-    if (existingSprints.length > 0) {
-      const existingStartDates = existingSprints.map(sprint => {
-        const sprintStartDate = new Date(sprint.startDate);
-        sprintStartDate.setHours(0, 0, 0, 0);
-        return sprintStartDate.getTime();
-      });
-
-      start.setHours(0, 0, 0, 0);
-      if (existingStartDates.includes(start.getTime())) {
-        setDateError("A sprint with this start date already exists");
-        return false;
-      }
-    }
-
     if (end < start) {
       setDateError("End date must be after start date");
+      return false;
+    }
+
+    // Check for date intersection with existing sprints
+    if (checkDateIntersection(start, end)) {
+      setDateError("This sprint intersects with an existing sprint. Sprints cannot overlap in dates.");
       return false;
     }
 
@@ -174,6 +181,9 @@ const CreateSprintDialog = ({
                 Note: Creating a sprint with today's start date will replace the current active sprint.
               </p>
             )}
+            <p className="mt-2 text-blue-500">
+              Note: Sprint dates cannot overlap with existing sprints.
+            </p>
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
