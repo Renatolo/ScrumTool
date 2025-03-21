@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { fetchSprintTasks } from "@/lib/supabase/tasks";
 import { Task } from "@/types/task";
 import { format, eachDayOfInterval, isBefore, isAfter, isSameDay, differenceInDays } from "date-fns";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Bar, BarChart, ComposedChart } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Bar, ComposedChart } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 
 interface BurndownChartProps {
@@ -156,7 +156,7 @@ const BurndownChart = ({ sprintId, sprintName, startDate, endDate }: BurndownCha
         </CardTitle>
       </CardHeader>
       <CardContent className="p-4">
-        <div className="h-[250px]"> {/* Increased height from 200px to 250px */}
+        <div className="h-[250px]">
           <ChartContainer config={chartConfig} className="h-full w-full">
             <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
