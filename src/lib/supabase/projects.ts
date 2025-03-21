@@ -1,4 +1,3 @@
-
 import { supabase } from './client';
 import { type Project } from '@/types/user';
 
@@ -128,33 +127,13 @@ export async function joinProject(code: string, userId: string) {
 }
 
 /**
- * Invites a user to a project by email
+ * Invites a user to a project by user ID
  * @param projectId - The project ID
- * @param email - The email of the user to invite
+ * @param userId - The ID of the user to invite
  * @returns Boolean indicating success
  */
-export async function inviteUserByEmail(projectId: string, email: string) {
+export async function inviteUserByEmail(projectId: string, userId: string) {
   try {
-    // First check if user with this email exists
-    const { data: userData, error: userError } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('email', email)
-      .single();
-    
-    if (userError) {
-      if (userError.code === 'PGRST116') {
-        throw new Error(`No user found with email ${email}`);
-      }
-      throw userError;
-    }
-    
-    if (!userData) {
-      throw new Error(`No user found with email ${email}`);
-    }
-    
-    const userId = userData.id;
-    
     // Get the project to check if user is already a member
     const { data: projectData, error: projectError } = await supabase
       .from('projects')

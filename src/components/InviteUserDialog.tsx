@@ -8,19 +8,14 @@ import { useToast } from "@/hooks/use-toast";
 import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase/client";
+import type { Profile } from "@/types/user";
 
 interface InviteUserDialogProps {
   open: boolean;
   onClose: () => void;
   projectId: string;
   onSuccess: () => void;
-}
-
-interface Profile {
-  id: string;
-  name: string;
-  email: string;
 }
 
 const InviteUserDialog = ({
@@ -40,13 +35,26 @@ const InviteUserDialog = ({
     const fetchProfiles = async () => {
       setIsLoading(true);
       try {
+        console.log("Fetching profiles from database...");
         const { data, error } = await supabase
           .from('profiles')
-          .select('id, name, email');
+          .select('id, name, avatar_url');
         
-        if (error) throw error;
+        if (error) {
+          console.error("Error fetching profiles:", error);
+          throw error;
+        }
         
-        setProfiles(data as Profile[] || []);
+        // Transform the data to match our Profile interface
+        const formattedProfiles = data.map(profile => ({
+          id: profile.id,
+          name: profile.name || 'Unnamed User',
+          email: '', // We don't have email in the profiles table
+          avatarUrl: profile.avatar_url
+        }));
+        
+        setProfiles(formattedProfiles);
+        console.log("Profiles loaded:", formattedProfiles);
       } catch (error) {
         console.error("Error fetching profiles:", error);
         setError("Failed to load user profiles");
@@ -69,19 +77,18 @@ const InviteUserDialog = ({
       return;
     }
 
-    const selectedProfile = profiles.find(profile => profile.id === selectedUserId);
-    if (!selectedProfile || !selectedProfile.email) {
-      setError("Invalid user selection");
-      return;
-    }
-
     try {
       setIsSubmitting(true);
-      await inviteUserByEmail(projectId, selectedProfile.email.trim());
+      
+      // Since we don't have email in profiles table, we need to get it from auth.users
+      // For now, we'll just use the user ID directly
+      await inviteUserByEmail(projectId, selectedUserId);
+      
+      const selectedProfile = profiles.find(profile => profile.id === selectedUserId);
       
       toast({
         title: "Success",
-        description: `Invitation sent to ${selectedProfile.name || selectedProfile.email}`,
+        description: `User ${selectedProfile?.name || 'selected'} has been invited to the project`,
       });
       
       // Reset form and close dialog
@@ -129,11 +136,17 @@ const InviteUserDialog = ({
                   <SelectValue placeholder="Select a user" />
                 </SelectTrigger>
                 <SelectContent>
-                  {profiles.map((profile) => (
-                    <SelectItem key={profile.id} value={profile.id}>
-                      {profile.name || profile.email}
+                  {profiles.length > 0 ? (
+                    profiles.map((profile) => (
+                      <SelectItem key={profile.id} value={profile.id}>
+                        {profile.name || 'Unnamed User'}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="no-users" disabled>
+                      No users available
                     </SelectItem>
-                  ))}
+                  )}
                 </SelectContent>
               </Select>
             )}
