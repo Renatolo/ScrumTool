@@ -2,18 +2,14 @@
 import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { fetchSprints } from "@/lib/supabase/sprints";
 import { Sprint } from "@/types/sprint";
 import { useToast } from "@/hooks/use-toast";
 import KanbanBoard from "@/components/KanbanBoard";
-import { CalendarClock } from "lucide-react";
-import { format, differenceInDays } from "date-fns";
-import { Progress } from "@/components/ui/progress";
 import { DndContext, DragOverlay, useSensors, useSensor, PointerSensor } from "@dnd-kit/core";
 import { Task } from "@/types/task";
 import { updateTask } from "@/lib/supabase/tasks";
-import TaskCard from "@/components/TaskCard";
+import BurndownChart from "@/components/BurndownChart";
 
 const SprintBoard = () => {
   const { sprintId } = useParams<{ sprintId: string }>();
@@ -62,22 +58,6 @@ const SprintBoard = () => {
 
     loadSprint();
   }, [sprintId, user]);
-
-  const calculateProgress = () => {
-    if (!sprint) return 0;
-    
-    const startDate = new Date(sprint.startDate);
-    const endDate = new Date(sprint.endDate);
-    const today = new Date();
-    
-    if (today < startDate) return 0;
-    if (today > endDate) return 100;
-    
-    const totalDays = differenceInDays(endDate, startDate) || 1;
-    const daysElapsed = differenceInDays(today, startDate);
-    
-    return Math.min(100, Math.round((daysElapsed / totalDays) * 100));
-  };
 
   const handleDragEnd = async (event: any) => {
     setActiveTask(null);
@@ -162,8 +142,6 @@ const SprintBoard = () => {
     );
   }
 
-  const progress = calculateProgress();
-
   return (
     <DndContext
       sensors={sensors}
@@ -171,26 +149,15 @@ const SprintBoard = () => {
       onDragStart={handleDragStart}
     >
       <div className="container mx-auto p-4">
-        <Card className="mb-6">
-          <CardHeader className="pb-2">
-            <div className="flex justify-between items-center">
-              <CardTitle className="text-xl">{sprint.name}</CardTitle>
-              <div className="flex items-center text-sm text-muted-foreground">
-                <CalendarClock size={16} className="mr-1" />
-                {format(new Date(sprint.startDate), "MMM d")} - {format(new Date(sprint.endDate), "MMM d, yyyy")}
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="mb-2">
-              <div className="flex justify-between mb-1 text-sm">
-                <span>Sprint Progress</span>
-                <span>{progress}%</span>
-              </div>
-              <Progress value={progress} />
-            </div>
-          </CardContent>
-        </Card>
+        {/* Replace the sprint progress card with the burndown chart */}
+        {sprintId && (
+          <BurndownChart 
+            sprintId={sprintId} 
+            sprintName={sprint.name}
+            startDate={sprint.startDate}
+            endDate={sprint.endDate}
+          />
+        )}
 
         {sprintId && <KanbanBoard sprintId={sprintId} />}
         

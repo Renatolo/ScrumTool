@@ -6,11 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { fetchSprintById } from "@/lib/supabase/sprints";
 import { useToast } from "@/hooks/use-toast";
 import KanbanBoard from "@/components/KanbanBoard";
-import { ArrowLeft, CalendarClock, AlertCircle } from "lucide-react";
-import { format, differenceInDays } from "date-fns";
-import { Progress } from "@/components/ui/progress";
+import { ArrowLeft, CalendarClock } from "lucide-react";
+import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Sprint } from "@/types/sprint";
+import BurndownChart from "@/components/BurndownChart";
 
 const SprintPage = () => {
   const { sprintId } = useParams<{ sprintId: string }>();
@@ -53,45 +53,6 @@ const SprintPage = () => {
     loadSprint();
   }, [sprintId, toast]);
 
-  const calculateProgress = () => {
-    if (!sprint) return 0;
-    
-    const startDate = new Date(sprint.startDate);
-    const endDate = new Date(sprint.endDate);
-    const today = new Date();
-    
-    if (today < startDate) return 0;
-    if (today > endDate) return 100;
-    
-    const totalDays = differenceInDays(endDate, startDate) || 1;
-    const daysElapsed = differenceInDays(today, startDate);
-    
-    return Math.min(100, Math.round((daysElapsed / totalDays) * 100));
-  };
-
-  const getDaysUntilEnd = () => {
-    if (!sprint) return 0;
-    
-    const endDate = new Date(sprint.endDate);
-    const today = new Date();
-    
-    if (today > endDate) return 0;
-    
-    return differenceInDays(endDate, today);
-  };
-
-  const getTimeRemainingText = () => {
-    const daysRemaining = getDaysUntilEnd();
-    
-    if (daysRemaining === 0) {
-      return "Sprint ends today";
-    } else if (daysRemaining === 1) {
-      return "1 day until end of sprint";
-    } else {
-      return `${daysRemaining} days until end of sprint`;
-    }
-  };
-
   const handleBackToProject = () => {
     if (sprint && sprint.projectId) {
       navigate(`/project/${sprint.projectId}`);
@@ -124,8 +85,6 @@ const SprintPage = () => {
     );
   }
 
-  const progress = calculateProgress();
-
   return (
     <div className="container mx-auto p-4">
       <div className="flex justify-between items-center mb-4">
@@ -135,34 +94,24 @@ const SprintPage = () => {
           </Button>
           <h1 className="text-2xl font-bold">Sprint Board</h1>
         </div>
-        <Button variant="outline" onClick={handleGoHome}>Home</Button>
+        <div className="flex items-center gap-2">
+          <div className="text-sm text-muted-foreground">
+            <CalendarClock size={16} className="inline mr-1" />
+            {format(new Date(sprint.startDate), "MMM d")} - {format(new Date(sprint.endDate), "MMM d, yyyy")}
+          </div>
+          <Button variant="outline" onClick={handleGoHome}>Home</Button>
+        </div>
       </div>
       
-      <Card className="mb-6">
-        <CardHeader className="pb-2">
-          <div className="flex justify-between items-center">
-            <CardTitle className="text-xl">{sprint.name}</CardTitle>
-            <div className="flex items-center text-sm text-muted-foreground">
-              <CalendarClock size={16} className="mr-1" />
-              {format(new Date(sprint.startDate), "MMM d")} - {format(new Date(sprint.endDate), "MMM d, yyyy")}
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="mb-2">
-            <div className="flex justify-between mb-1 text-sm">
-              <span>Sprint Progress</span>
-              <span>{progress}%</span>
-            </div>
-            <Progress value={progress} className="mb-3" />
-            
-            <div className={`flex items-center text-sm font-medium ${getDaysUntilEnd() <= 2 ? "text-amber-600" : "text-blue-600"}`}>
-              <AlertCircle size={16} className="mr-1" />
-              {getTimeRemainingText()}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Replace the sprint progress card with the burndown chart */}
+      {sprintId && (
+        <BurndownChart 
+          sprintId={sprintId} 
+          sprintName={sprint.name}
+          startDate={sprint.startDate}
+          endDate={sprint.endDate}
+        />
+      )}
 
       {sprintId && <KanbanBoard sprintId={sprintId} />}
     </div>
