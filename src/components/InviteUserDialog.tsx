@@ -38,23 +38,17 @@ const InviteUserDialog = ({
         console.log("Fetching profiles from database...");
         const { data, error } = await supabase
           .from('profiles')
-          .select('id, name, avatar_url');
+          .select('id, name, avatar_url, created_at, updated_at');
         
         if (error) {
           console.error("Error fetching profiles:", error);
           throw error;
         }
         
-        // Transform the data to match our Profile interface
-        const formattedProfiles = data.map(profile => ({
-          id: profile.id,
-          name: profile.name || 'Unnamed User',
-          email: '', // We don't have email in the profiles table
-          avatarUrl: profile.avatar_url
-        }));
-        
-        setProfiles(formattedProfiles);
-        console.log("Profiles loaded:", formattedProfiles);
+        if (data) {
+          setProfiles(data);
+          console.log("Profiles loaded:", data);
+        }
       } catch (error) {
         console.error("Error fetching profiles:", error);
         setError("Failed to load user profiles");
@@ -80,15 +74,14 @@ const InviteUserDialog = ({
     try {
       setIsSubmitting(true);
       
-      // Since we don't have email in profiles table, we need to get it from auth.users
-      // For now, we'll just use the user ID directly
+      // Add user directly to the project (no invitation)
       await inviteUserByEmail(projectId, selectedUserId);
       
       const selectedProfile = profiles.find(profile => profile.id === selectedUserId);
       
       toast({
         title: "Success",
-        description: `User ${selectedProfile?.name || 'selected'} has been invited to the project`,
+        description: `User ${selectedProfile?.name || 'selected'} has been added to the project`,
       });
       
       // Reset form and close dialog
@@ -96,8 +89,8 @@ const InviteUserDialog = ({
       onClose();
       onSuccess();
     } catch (error) {
-      console.error("Error inviting user:", error);
-      setError(error instanceof Error ? error.message : "Failed to invite user. Please try again.");
+      console.error("Error adding user:", error);
+      setError(error instanceof Error ? error.message : "Failed to add user. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -118,9 +111,9 @@ const InviteUserDialog = ({
     <Dialog open={open} onOpenChange={handleCloseDialog}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Invite Team Member</DialogTitle>
+          <DialogTitle>Add Team Member</DialogTitle>
           <DialogDescription>
-            Select a user to invite to this project.
+            Select a user to add to this project.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -164,7 +157,7 @@ const InviteUserDialog = ({
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting || isLoading}>
-              {isSubmitting ? "Sending..." : "Send Invitation"}
+              {isSubmitting ? "Adding..." : "Add to Project"}
             </Button>
           </div>
         </form>

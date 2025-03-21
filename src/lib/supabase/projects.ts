@@ -127,9 +127,9 @@ export async function joinProject(code: string, userId: string) {
 }
 
 /**
- * Invites a user to a project by user ID
+ * Adds a user to a project by user ID
  * @param projectId - The project ID
- * @param userId - The ID of the user to invite
+ * @param userId - The ID of the user to add
  * @returns Boolean indicating success
  */
 export async function inviteUserByEmail(projectId: string, userId: string) {
@@ -137,7 +137,7 @@ export async function inviteUserByEmail(projectId: string, userId: string) {
     // Get the project to check if user is already a member
     const { data: projectData, error: projectError } = await supabase
       .from('projects')
-      .select('members')
+      .select('members, name')
       .eq('id', projectId)
       .single();
     
@@ -158,9 +158,54 @@ export async function inviteUserByEmail(projectId: string, userId: string) {
       
     if (updateError) throw updateError;
     
+    console.log(`User ${userId} added to project ${projectId}`);
     return true;
   } catch (error) {
-    console.error('Error inviting user:', error);
+    console.error('Error adding user to project:', error);
+    throw error;
+  }
+}
+
+/**
+ * Removes a user from a project
+ * @param projectId - The project ID
+ * @param userId - The ID of the user to remove
+ * @returns Boolean indicating success
+ */
+export async function removeUserFromProject(projectId: string, userId: string) {
+  try {
+    // Get the project to check if user is a member
+    const { data: projectData, error: projectError } = await supabase
+      .from('projects')
+      .select('members, user_id')
+      .eq('id', projectId)
+      .single();
+    
+    if (projectError) throw projectError;
+    
+    // Don't allow removing the owner
+    if (projectData.user_id === userId) {
+      throw new Error('Cannot remove the project owner');
+    }
+    
+    // Check if user is a member
+    if (!projectData.members || !projectData.members.includes(userId)) {
+      throw new Error('User is not a member of this project');
+    }
+    
+    // Remove user from project members
+    const updatedMembers = projectData.members.filter(id => id !== userId);
+    
+    const { error: updateError } = await supabase
+      .from('projects')
+      .update({ members: updatedMembers })
+      .eq('id', projectId);
+      
+    if (updateError) throw updateError;
+    
+    return true;
+  } catch (error) {
+    console.error('Error removing user from project:', error);
     throw error;
   }
 }

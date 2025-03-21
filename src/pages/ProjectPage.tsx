@@ -49,6 +49,7 @@ const ProjectPage = () => {
   const [loading, setLoading] = useState(true);
   const [isCreateSprintOpen, setIsCreateSprintOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isRemovingUser, setIsRemovingUser] = useState(false);
   const navigate = useNavigate();
   const [isInviteUserOpen, setIsInviteUserOpen] = useState(false);
 
@@ -234,6 +235,42 @@ const ProjectPage = () => {
     }
   };
 
+  const handleRemoveUser = async (userId: string) => {
+    if (!projectId || !project) return;
+    
+    try {
+      setIsRemovingUser(true);
+      
+      const updatedMembers = project.members.filter(id => id !== userId);
+      
+      const { error } = await supabase
+        .from('projects')
+        .update({ members: updatedMembers })
+        .eq('id', projectId);
+        
+      if (error) throw error;
+      
+      const filteredUserProfiles = { ...userProfiles };
+      delete filteredUserProfiles[userId];
+      setUserProfiles(filteredUserProfiles);
+      
+      toast({
+        title: "Success",
+        description: "User removed from project",
+      });
+      
+    } catch (error) {
+      console.error('Error removing user:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to remove user from project',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsRemovingUser(false);
+    }
+  };
+
   const getInitials = (name: string) => {
     return name.charAt(0).toUpperCase();
   };
@@ -331,18 +368,31 @@ const ProjectPage = () => {
               
               <div className="space-y-4 mb-6">
                 {Object.values(userProfiles).map((profile) => (
-                  <div key={profile.id} className="flex items-center">
-                    <Avatar className="h-8 w-8 mr-3">
-                      <AvatarFallback>{getInitials(profile.name)}</AvatarFallback>
-                    </Avatar>
-                    <span>{profile.name}</span>
+                  <div key={profile.id} className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <Avatar className="h-8 w-8 mr-3">
+                        <AvatarFallback>{getInitials(profile.name)}</AvatarFallback>
+                      </Avatar>
+                      <span>{profile.name}</span>
+                    </div>
+                    {project?.user_id !== profile.id && (
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="text-destructive hover:text-destructive/80"
+                        onClick={() => handleRemoveUser(profile.id)}
+                        disabled={isRemovingUser}
+                      >
+                        <Trash className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
                 ))}
               </div>
               
               <Button variant="outline" className="w-full" onClick={() => setIsInviteUserOpen(true)}>
                 <Plus className="mr-2 h-4 w-4" />
-                Invite Member
+                Add Member
               </Button>
             </CardContent>
           </Card>
