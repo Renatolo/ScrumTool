@@ -46,8 +46,24 @@ const InviteUserDialog = ({
         }
         
         if (data) {
-          setProfiles(data);
-          console.log("Profiles loaded:", data);
+          // Get current project to filter out existing members
+          const { data: projectData } = await supabase
+            .from('projects')
+            .select('members')
+            .eq('id', projectId)
+            .single();
+            
+          if (projectData && projectData.members) {
+            // Filter out users that are already members of the project
+            const filteredProfiles = data.filter(profile => 
+              !projectData.members.includes(profile.id)
+            );
+            setProfiles(filteredProfiles);
+            console.log("Profiles loaded:", filteredProfiles);
+          } else {
+            setProfiles(data);
+            console.log("Profiles loaded:", data);
+          }
         }
       } catch (error) {
         console.error("Error fetching profiles:", error);
@@ -60,7 +76,7 @@ const InviteUserDialog = ({
     if (open) {
       fetchProfiles();
     }
-  }, [open]);
+  }, [open, projectId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,6 +103,8 @@ const InviteUserDialog = ({
       // Reset form and close dialog
       setSelectedUserId("");
       onClose();
+      
+      // Call onSuccess to refresh the project data
       onSuccess();
     } catch (error) {
       console.error("Error adding user:", error);
@@ -156,7 +174,7 @@ const InviteUserDialog = ({
             <Button type="button" variant="outline" onClick={handleCloseDialog} disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting || isLoading}>
+            <Button type="submit" disabled={isSubmitting || isLoading || profiles.length === 0}>
               {isSubmitting ? "Adding..." : "Add to Project"}
             </Button>
           </div>
