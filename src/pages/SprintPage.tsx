@@ -103,15 +103,17 @@ const SprintPage = () => {
         </div>
       </div>
       
-      {/* Replace the sprint progress card with the burndown chart */}
-      {sprintId && (
-        <BurndownChart 
-          sprintId={sprintId} 
-          sprintName={sprint.name}
-          startDate={sprint.startDate}
-          endDate={sprint.endDate}
-        />
-      )}
+      {/* Enhanced burndown chart - now with more width */}
+      <div className="w-full mb-6">
+        {sprintId && (
+          <BurndownChart 
+            sprintId={sprintId} 
+            sprintName={sprint.name}
+            startDate={sprint.startDate}
+            endDate={sprint.endDate}
+          />
+        )}
+      </div>
 
       {sprintId && <KanbanBoard sprintId={sprintId} />}
     </div>

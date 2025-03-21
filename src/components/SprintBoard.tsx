@@ -149,15 +149,17 @@ const SprintBoard = () => {
       onDragStart={handleDragStart}
     >
       <div className="container mx-auto p-4">
-        {/* Replace the sprint progress card with the burndown chart */}
-        {sprintId && (
-          <BurndownChart 
-            sprintId={sprintId} 
-            sprintName={sprint.name}
-            startDate={sprint.startDate}
-            endDate={sprint.endDate}
-          />
-        )}
+        {/* Enhanced burndown chart in a wider container */}
+        <div className="w-full mb-6">
+          {sprintId && (
+            <BurndownChart 
+              sprintId={sprintId} 
+              sprintName={sprint.name}
+              startDate={sprint.startDate}
+              endDate={sprint.endDate}
+            />
+          )}
+        </div>
 
         {sprintId && <KanbanBoard sprintId={sprintId} />}
         

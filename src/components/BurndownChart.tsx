@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { fetchSprintTasks } from "@/lib/supabase/tasks";
 import { Task } from "@/types/task";
 import { format, eachDayOfInterval, isBefore, isAfter, isSameDay, differenceInDays } from "date-fns";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Bar, BarChart, ComposedChart } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 
 interface BurndownChartProps {
@@ -19,6 +19,7 @@ interface BurndownDataPoint {
   formattedDate: string;
   ideal: number;
   actual: number;
+  remaining: number;
 }
 
 const BurndownChart = ({ sprintId, sprintName, startDate, endDate }: BurndownChartProps) => {
@@ -98,7 +99,10 @@ const BurndownChart = ({ sprintId, sprintName, startDate, endDate }: BurndownCha
         ideal: Math.round(idealRemaining * 10) / 10,
         actual: isBefore(date, today) || isSameDay(date, today) 
           ? Math.round(actualRemaining * 10) / 10 
-          : null // Don't show actual data for future dates
+          : null, // Don't show actual data for future dates
+        remaining: isBefore(date, today) || isSameDay(date, today) 
+          ? Math.round(actualRemaining * 10) / 10 
+          : null // Don't show remaining data for future dates
       };
     });
     
@@ -109,7 +113,7 @@ const BurndownChart = ({ sprintId, sprintName, startDate, endDate }: BurndownCha
     return (
       <Card className="w-full mb-6">
         <CardContent className="p-4">
-          <div className="h-[200px] flex items-center justify-center">
+          <div className="h-[250px] flex items-center justify-center">
             <div className="animate-spin h-6 w-6 border-4 border-primary border-t-transparent rounded-full"></div>
           </div>
         </CardContent>
@@ -131,6 +135,13 @@ const BurndownChart = ({ sprintId, sprintName, startDate, endDate }: BurndownCha
         light: "#3b82f6", // blue-500
         dark: "#60a5fa"   // blue-400
       }
+    },
+    remaining: {
+      label: "Remaining",
+      theme: {
+        light: "#9ca3af", // gray-400 
+        dark: "#4b5563"   // gray-600
+      }
     }
   };
 
@@ -145,9 +156,9 @@ const BurndownChart = ({ sprintId, sprintName, startDate, endDate }: BurndownCha
         </CardTitle>
       </CardHeader>
       <CardContent className="p-4">
-        <div className="h-[200px]">
-          <ChartContainer config={chartConfig} className="h-full">
-            <LineChart data={chartData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+        <div className="h-[250px]"> {/* Increased height from 200px to 250px */}
+          <ChartContainer config={chartConfig} className="h-full w-full">
+            <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis 
                 dataKey="formattedDate" 
@@ -167,20 +178,40 @@ const BurndownChart = ({ sprintId, sprintName, startDate, endDate }: BurndownCha
                   
                   return (
                     <ChartTooltipContent>
-                      {payload.map((entry, index) => (
-                        <div key={index} className="flex justify-between items-center w-full gap-2">
-                          <span className="text-xs font-medium">{entry.name === "ideal" ? "Ideal" : "Actual"}</span>
-                          <span className="text-xs font-mono">{entry.value} points</span>
-                        </div>
-                      ))}
-                      <div className="text-xs text-muted-foreground mt-1">
+                      <div className="text-xs font-medium mb-1">
                         {format(new Date(payload[0].payload.date), "MMM d, yyyy")}
                       </div>
+                      {payload.map((entry, index) => {
+                        if (entry.value === null) return null;
+                        
+                        let label = "";
+                        if (entry.name === "ideal") label = "Ideal Remaining";
+                        if (entry.name === "actual") label = "Actual Remaining";
+                        if (entry.name === "remaining") label = "Story Points";
+                        
+                        return (
+                          <div key={index} className="flex justify-between items-center w-full gap-2">
+                            <span className="text-xs font-medium">{label}</span>
+                            <span className="text-xs font-mono">{entry.value} points</span>
+                          </div>
+                        );
+                      })}
                     </ChartTooltipContent>
                   );
                 }}
               />
               <ReferenceLine y={0} stroke="#e5e7eb" />
+              
+              {/* Bar for remaining story points */}
+              <Bar
+                dataKey="remaining"
+                fill="var(--color-remaining)"
+                radius={[4, 4, 0, 0]}
+                barSize={20}
+                name="remaining"
+              />
+              
+              {/* Ideal burndown line (dashed) */}
               <Line
                 type="monotone"
                 dataKey="ideal"
@@ -190,7 +221,10 @@ const BurndownChart = ({ sprintId, sprintName, startDate, endDate }: BurndownCha
                 dot={false}
                 activeDot={false}
                 isAnimationActive={false}
+                name="ideal"
               />
+              
+              {/* Actual burndown line */}
               <Line
                 type="monotone"
                 dataKey="actual"
@@ -199,8 +233,9 @@ const BurndownChart = ({ sprintId, sprintName, startDate, endDate }: BurndownCha
                 dot={{ r: 3, strokeWidth: 0, fill: "var(--color-actual)" }}
                 activeDot={{ r: 4, strokeWidth: 0 }}
                 connectNulls={true}
+                name="actual"
               />
-            </LineChart>
+            </ComposedChart>
           </ChartContainer>
         </div>
       </CardContent>
