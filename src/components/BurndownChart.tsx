@@ -6,6 +6,8 @@ import { Task } from "@/types/task";
 import { format, eachDayOfInterval, isBefore, isAfter, isSameDay, differenceInDays } from "date-fns";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Bar, ComposedChart } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { InfoIcon } from "lucide-react";
 
 interface BurndownChartProps {
   sprintId: string;
@@ -125,7 +127,7 @@ const BurndownChart = ({ sprintId, sprintName, startDate, endDate }: BurndownCha
     ideal: {
       label: "Ideal",
       theme: {
-        light: "#d1d5db", // gray-300
+        light: "#9ca3af", // gray-400
         dark: "#6b7280"   // gray-500
       }
     },
@@ -139,24 +141,49 @@ const BurndownChart = ({ sprintId, sprintName, startDate, endDate }: BurndownCha
     remaining: {
       label: "Remaining",
       theme: {
-        light: "#9ca3af", // gray-400 
-        dark: "#4b5563"   // gray-600
+        light: "#10b981", // emerald-500 
+        dark: "#34d399"   // emerald-400
       }
     }
   };
 
+  // Calculate completion percentage
+  const completionPercentage = totalPoints > 0 
+    ? Math.round(((totalPoints - remainingPoints) / totalPoints) * 100) 
+    : 0;
+
   return (
-    <Card className="w-full mb-6">
+    <Card className="w-full mb-6 border-2 border-muted hover:border-muted-foreground/20 transition-colors">
       <CardHeader className="pb-2">
         <CardTitle className="text-xl flex justify-between items-center">
-          <span>Sprint Burndown</span>
-          <span className="text-sm font-normal text-muted-foreground">
-            {remainingPoints} of {totalPoints} story points remaining
-          </span>
+          <div className="flex items-center gap-2">
+            <span>Sprint Burndown</span>
+            <TooltipProvider>
+              <UITooltip>
+                <TooltipTrigger asChild>
+                  <InfoIcon className="h-4 w-4 text-muted-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  <p>This chart shows the ideal vs. actual sprint progress. Bars represent remaining story points each day.</p>
+                </TooltipContent>
+              </UITooltip>
+            </TooltipProvider>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="h-2 w-24 bg-muted rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-primary" 
+                style={{ width: `${completionPercentage}%` }}
+              />
+            </div>
+            <span className="text-sm font-normal">
+              <span className="font-semibold">{remainingPoints}</span> of <span className="font-semibold">{totalPoints}</span> story points remaining
+            </span>
+          </div>
         </CardTitle>
       </CardHeader>
       <CardContent className="p-4">
-        <div className="h-[250px]">
+        <div className="h-[300px]">
           <ChartContainer config={chartConfig} className="h-full w-full">
             <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
@@ -178,8 +205,8 @@ const BurndownChart = ({ sprintId, sprintName, startDate, endDate }: BurndownCha
                   
                   return (
                     <ChartTooltipContent>
-                      <div className="text-xs font-medium mb-1">
-                        {format(new Date(payload[0].payload.date), "MMM d, yyyy")}
+                      <div className="text-xs font-medium mb-2 border-b pb-1">
+                        {format(new Date(payload[0].payload.date), "EEEE, MMM d, yyyy")}
                       </div>
                       {payload.map((entry, index) => {
                         if (entry.value === null) return null;
@@ -190,9 +217,9 @@ const BurndownChart = ({ sprintId, sprintName, startDate, endDate }: BurndownCha
                         if (entry.name === "remaining") label = "Story Points";
                         
                         return (
-                          <div key={index} className="flex justify-between items-center w-full gap-2">
+                          <div key={index} className="flex justify-between items-center w-full gap-4 py-0.5">
                             <span className="text-xs font-medium">{label}</span>
-                            <span className="text-xs font-mono">{entry.value} points</span>
+                            <span className="text-xs font-mono font-bold">{entry.value} points</span>
                           </div>
                         );
                       })}
@@ -207,8 +234,10 @@ const BurndownChart = ({ sprintId, sprintName, startDate, endDate }: BurndownCha
                 dataKey="remaining"
                 fill="var(--color-remaining)"
                 radius={[4, 4, 0, 0]}
-                barSize={20}
+                barSize={24}
                 name="remaining"
+                animationDuration={800}
+                isAnimationActive={true}
               />
               
               {/* Ideal burndown line (dashed) */}
@@ -220,7 +249,8 @@ const BurndownChart = ({ sprintId, sprintName, startDate, endDate }: BurndownCha
                 strokeDasharray="4 4"
                 dot={false}
                 activeDot={false}
-                isAnimationActive={false}
+                isAnimationActive={true}
+                animationDuration={1500}
                 name="ideal"
               />
               
@@ -230,10 +260,12 @@ const BurndownChart = ({ sprintId, sprintName, startDate, endDate }: BurndownCha
                 dataKey="actual"
                 strokeWidth={2}
                 stroke="var(--color-actual)"
-                dot={{ r: 3, strokeWidth: 0, fill: "var(--color-actual)" }}
-                activeDot={{ r: 4, strokeWidth: 0 }}
+                dot={{ r: 4, strokeWidth: 0, fill: "var(--color-actual)" }}
+                activeDot={{ r: 5, strokeWidth: 1, stroke: "#fff" }}
                 connectNulls={true}
                 name="actual"
+                isAnimationActive={true}
+                animationDuration={1200}
               />
             </ComposedChart>
           </ChartContainer>
