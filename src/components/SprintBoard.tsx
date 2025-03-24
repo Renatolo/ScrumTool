@@ -9,7 +9,6 @@ import KanbanBoard from "@/components/KanbanBoard";
 import { DndContext, DragOverlay, useSensors, useSensor, PointerSensor } from "@dnd-kit/core";
 import { Task } from "@/types/task";
 import { updateTask } from "@/lib/supabase/tasks";
-import BurndownChart from "@/components/BurndownChart";
 
 const SprintBoard = () => {
   const { sprintId } = useParams<{ sprintId: string }>();
@@ -149,18 +148,6 @@ const SprintBoard = () => {
       onDragStart={handleDragStart}
     >
       <div className="container mx-auto p-4">
-        {/* Enhanced burndown chart in a wider container */}
-        <div className="w-full mb-6">
-          {sprintId && (
-            <BurndownChart 
-              sprintId={sprintId} 
-              sprintName={sprint.name}
-              startDate={sprint.startDate}
-              endDate={sprint.endDate}
-            />
-          )}
-        </div>
-
         {sprintId && <KanbanBoard sprintId={sprintId} />}
         
         <DragOverlay>

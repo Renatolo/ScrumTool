@@ -17,12 +17,12 @@ import {
   ChartTooltip, 
   ChartTooltipContent 
 } from "@/components/ui/chart";
-import { BurndownDataPoint, ChartConfig } from "@/utils/burndownChartUtils";
+import { BurndownDataPoint, ChartConfig as BurndownChartConfig } from "@/utils/burndownChartUtils";
 
 interface BurndownChartRendererProps {
   chartData: BurndownDataPoint[];
   totalPoints: number;
-  chartConfig: ChartConfig;
+  chartConfig: BurndownChartConfig;
 }
 
 const BurndownChartRenderer = ({ 
@@ -30,9 +30,20 @@ const BurndownChartRenderer = ({
   totalPoints, 
   chartConfig 
 }: BurndownChartRendererProps) => {
+  // Convert our chart config to the format expected by the UI component
+  const uiChartConfig: Record<string, any> = {};
+  
+  // Add each key from our config to the UI config with the proper format
+  Object.keys(chartConfig).forEach(key => {
+    uiChartConfig[key] = {
+      label: chartConfig[key].label,
+      theme: chartConfig[key].theme
+    };
+  });
+  
   return (
     <div className="h-[300px]">
-      <ChartContainer config={chartConfig} className="h-full w-full">
+      <ChartContainer config={uiChartConfig} className="h-full w-full">
         <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
           <CartesianGrid strokeDasharray="3 3" vertical={false} />
           <XAxis 

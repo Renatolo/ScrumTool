@@ -1,46 +1,80 @@
 
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { fetchSprintTasks } from "@/lib/supabase/tasks";
+import { fetchProductBacklog } from "@/lib/supabase/tasks";
 import { Task } from "@/types/task";
 import { InfoIcon } from "lucide-react";
 import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import BurndownChartRenderer from "./BurndownChartRenderer";
 import BurndownChartLoading from "./BurndownChartLoading";
 import { BurndownDataPoint, getDefaultChartConfig, generateBurndownData } from "@/utils/burndownChartUtils";
+import { fetchProjectSprints } from "@/lib/supabase/sprints";
+import { Sprint } from "@/types/sprint";
 
 interface BurndownChartProps {
-  sprintId: string;
-  sprintName: string;
-  startDate: string;
-  endDate: string;
+  projectId: string;
+  projectName: string;
 }
 
-const BurndownChart = ({ sprintId, sprintName, startDate, endDate }: BurndownChartProps) => {
+const BurndownChart = ({ projectId, projectName }: BurndownChartProps) => {
   const [chartData, setChartData] = useState<BurndownDataPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalPoints, setTotalPoints] = useState(0);
   const [remainingPoints, setRemainingPoints] = useState(0);
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const tasks = await fetchSprintTasks(sprintId);
         
-        // Calculate total story points
-        const total = tasks.reduce((sum, task) => sum + (task.points || 0), 0);
-        setTotalPoints(total);
+        // Fetch all tasks for the project
+        const tasks = await fetchProductBacklog(projectId);
         
-        // Calculate remaining points (points in tasks not done)
-        const remaining = tasks
-          .filter(task => task.status !== "done")
-          .reduce((sum, task) => sum + (task.points || 0), 0);
-        setRemainingPoints(remaining);
+        // Fetch all sprints to determine the project date range
+        const sprints = await fetchProjectSprints(projectId);
         
-        // Generate the burndown chart data
-        const data = generateBurndownData(tasks, total, startDate, endDate);
-        setChartData(data);
+        if (sprints.length > 0) {
+          // Find the earliest start date and latest end date across all sprints
+          const sortedByStart = [...sprints].sort((a, b) => 
+            new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
+          );
+          
+          const sortedByEnd = [...sprints].sort((a, b) => 
+            new Date(b.endDate).getTime() - new Date(a.endDate).getTime()
+          );
+          
+          setStartDate(sortedByStart[0].startDate);
+          setEndDate(sortedByEnd[0].endDate);
+          
+          // Calculate total story points
+          const total = tasks.reduce((sum, task) => sum + (task.points || 0), 0);
+          setTotalPoints(total);
+          
+          // Calculate remaining points (points in tasks not done)
+          const remaining = tasks
+            .filter(task => task.status !== "done")
+            .reduce((sum, task) => sum + (task.points || 0), 0);
+          setRemainingPoints(remaining);
+          
+          // Generate the burndown chart data
+          const data = generateBurndownData(tasks, total, sortedByStart[0].startDate, sortedByEnd[0].endDate);
+          setChartData(data);
+        } else {
+          // If no sprints, use today as start and 2 weeks from now as end
+          const today = new Date();
+          const twoWeeksLater = new Date();
+          twoWeeksLater.setDate(today.getDate() + 14);
+          
+          setStartDate(today.toISOString());
+          setEndDate(twoWeeksLater.toISOString());
+          
+          // Set empty chart data
+          setChartData([]);
+          setTotalPoints(0);
+          setRemainingPoints(0);
+        }
       } catch (error) {
         console.error("Error fetching burndown data:", error);
       } finally {
@@ -48,13 +82,18 @@ const BurndownChart = ({ sprintId, sprintName, startDate, endDate }: BurndownCha
       }
     };
 
-    if (sprintId) {
+    if (projectId) {
       fetchData();
     }
-  }, [sprintId, startDate, endDate]);
+  }, [projectId]);
 
   if (loading) {
     return <BurndownChartLoading />;
+  }
+
+  // If there are no sprints or tasks, don't show the chart
+  if (chartData.length === 0 || totalPoints === 0) {
+    return null;
   }
 
   // Get chart configuration
@@ -70,14 +109,14 @@ const BurndownChart = ({ sprintId, sprintName, startDate, endDate }: BurndownCha
       <CardHeader className="pb-2">
         <CardTitle className="text-xl flex justify-between items-center">
           <div className="flex items-center gap-2">
-            <span>Sprint Burndown</span>
+            <span>Project Burndown</span>
             <TooltipProvider>
               <UITooltip>
                 <TooltipTrigger asChild>
                   <InfoIcon className="h-4 w-4 text-muted-foreground cursor-help" />
                 </TooltipTrigger>
                 <TooltipContent className="max-w-xs">
-                  <p>This chart shows the ideal vs. actual sprint progress. Bars represent remaining story points each day.</p>
+                  <p>This chart shows the ideal vs. actual project progress across all sprints. Bars represent remaining story points each day.</p>
                 </TooltipContent>
               </UITooltip>
             </TooltipProvider>

@@ -28,6 +28,7 @@ import {
 import { supabase } from "@/lib/supabase/client";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import InviteUserDialog from "@/components/InviteUserDialog";
+import BurndownChart from "@/components/BurndownChart";
 
 const ProjectPage = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -346,6 +347,13 @@ const ProjectPage = () => {
       
       {project?.description && (
         <p className="text-muted-foreground mb-8">{project.description}</p>
+      )}
+      
+      {projectId && project && (
+        <BurndownChart 
+          projectId={projectId}
+          projectName={project.name}
+        />
       )}
       
       <div className="grid md:grid-cols-3 gap-6">

@@ -10,7 +10,6 @@ import { ArrowLeft, CalendarClock } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Sprint } from "@/types/sprint";
-import BurndownChart from "@/components/BurndownChart";
 
 const SprintPage = () => {
   const { sprintId } = useParams<{ sprintId: string }>();
@@ -101,18 +100,6 @@ const SprintPage = () => {
           </div>
           <Button variant="outline" onClick={handleGoHome}>Home</Button>
         </div>
-      </div>
-      
-      {/* Enhanced burndown chart - now with more width */}
-      <div className="w-full mb-6">
-        {sprintId && (
-          <BurndownChart 
-            sprintId={sprintId} 
-            sprintName={sprint.name}
-            startDate={sprint.startDate}
-            endDate={sprint.endDate}
-          />
-        )}
       </div>
 
       {sprintId && <KanbanBoard sprintId={sprintId} />}
