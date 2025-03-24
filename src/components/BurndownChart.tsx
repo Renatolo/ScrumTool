@@ -70,10 +70,18 @@ const BurndownChart = ({ projectId, projectName }: BurndownChartProps) => {
           setStartDate(today.toISOString());
           setEndDate(twoWeeksLater.toISOString());
           
-          // Set empty chart data
-          setChartData([]);
-          setTotalPoints(0);
-          setRemainingPoints(0);
+          // For empty projects, initialize with empty chart data with ideal line
+          const total = tasks.reduce((sum, task) => sum + (task.points || 0), 0);
+          setTotalPoints(total);
+          
+          const remaining = tasks
+            .filter(task => task.status !== "done")
+            .reduce((sum, task) => sum + (task.points || 0), 0);
+          setRemainingPoints(remaining);
+          
+          // Generate empty chart data
+          const data = generateBurndownData(tasks, total, today.toISOString(), twoWeeksLater.toISOString());
+          setChartData(data);
         }
       } catch (error) {
         console.error("Error fetching burndown data:", error);
@@ -91,11 +99,6 @@ const BurndownChart = ({ projectId, projectName }: BurndownChartProps) => {
     return <BurndownChartLoading />;
   }
 
-  // If there are no sprints or tasks, don't show the chart
-  if (chartData.length === 0 || totalPoints === 0) {
-    return null;
-  }
-
   // Get chart configuration
   const chartConfig = getDefaultChartConfig();
 
@@ -103,6 +106,17 @@ const BurndownChart = ({ projectId, projectName }: BurndownChartProps) => {
   const completionPercentage = totalPoints > 0 
     ? Math.round(((totalPoints - remainingPoints) / totalPoints) * 100) 
     : 0;
+
+  // Placeholder message when no data exists
+  const noDataMessage = (
+    <div className="flex flex-col items-center justify-center h-[250px] text-center">
+      <InfoIcon className="h-10 w-10 text-muted-foreground mb-4" />
+      <h3 className="text-lg font-medium mb-2">No Sprint Data Yet</h3>
+      <p className="text-muted-foreground max-w-md">
+        Create sprints and add tasks with story points to see your project burndown chart.
+      </p>
+    </div>
+  );
 
   return (
     <Card className="w-full mb-6 border-2 border-muted hover:border-muted-foreground/20 transition-colors">
@@ -121,25 +135,31 @@ const BurndownChart = ({ projectId, projectName }: BurndownChartProps) => {
               </UITooltip>
             </TooltipProvider>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="h-2 w-24 bg-muted rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-primary" 
-                style={{ width: `${completionPercentage}%` }}
-              />
+          {totalPoints > 0 && (
+            <div className="flex items-center gap-3">
+              <div className="h-2 w-24 bg-muted rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-primary" 
+                  style={{ width: `${completionPercentage}%` }}
+                />
+              </div>
+              <span className="text-sm font-normal">
+                <span className="font-semibold">{remainingPoints}</span> of <span className="font-semibold">{totalPoints}</span> story points remaining
+              </span>
             </div>
-            <span className="text-sm font-normal">
-              <span className="font-semibold">{remainingPoints}</span> of <span className="font-semibold">{totalPoints}</span> story points remaining
-            </span>
-          </div>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent className="p-4">
-        <BurndownChartRenderer 
-          chartData={chartData} 
-          totalPoints={totalPoints} 
-          chartConfig={chartConfig} 
-        />
+        {chartData.length === 0 || totalPoints === 0 ? (
+          noDataMessage
+        ) : (
+          <BurndownChartRenderer 
+            chartData={chartData} 
+            totalPoints={totalPoints} 
+            chartConfig={chartConfig} 
+          />
+        )}
       </CardContent>
     </Card>
   );
