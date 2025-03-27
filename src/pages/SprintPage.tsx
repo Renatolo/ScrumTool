@@ -72,12 +72,12 @@ const SprintPage = () => {
     navigate('/');
   };
 
-  // Helper function to get the appropriate badge color
+  // Helper function to get the appropriate badge color based on days remaining
   const getDaysRemainingBadgeColor = (days: number) => {
     if (days < 0) return "destructive";
     if (days <= 2) return "destructive";
-    if (days <= 5) return "secondary"; // Changed from "warning" to "secondary"
-    return "default"; // Changed from "success" to "default"
+    if (days <= 5) return "secondary"; // Medium urgency
+    return "default"; // Low urgency
   };
 
   if (loading) {
