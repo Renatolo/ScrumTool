@@ -149,11 +149,21 @@ const Dashboard = () => {
     } catch (e: any) {
       console.error("Failed to join project", e);
       setError(e.message || "Failed to join project");
-      toast({
-        title: "Error",
-        description: e.message || "Failed to join project",
-        variant: "destructive",
-      });
+      
+      // Show a toast message if the error is about already being a member
+      if (e.message && e.message.includes("already a member")) {
+        toast({
+          title: "Info",
+          description: e.message,
+          variant: "default",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: e.message || "Failed to join project",
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsJoining(false);
     }

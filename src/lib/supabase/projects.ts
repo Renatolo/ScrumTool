@@ -1,3 +1,4 @@
+
 import { supabase } from './client';
 import { type Project } from '@/types/user';
 
@@ -100,9 +101,9 @@ export async function joinProject(code: string, userId: string) {
       throw new Error('Project not found with this code');
     }
     
-    // If user is already a member, just return the project
+    // If user is already a member, return an error with project name
     if (data.members && data.members.includes(userId)) {
-      return data as Project;
+      throw new Error(`You are already a member of "${data.name}"`);
     }
     
     // Add user to project members

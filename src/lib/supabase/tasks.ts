@@ -1,3 +1,4 @@
+
 import { supabase } from './client';
 import { type Task } from '@/types/task';
 
@@ -169,8 +170,8 @@ export async function fetchProductBacklog(projectId: string) {
   const { data, error } = await supabase
     .from('tasks')
     .select('*')
-    .eq('project_id', projectId);
-    // Removed the .is('sprint_id', null) filter to include all tasks
+    .eq('project_id', projectId)
+    .is('sprint_id', null);  // Only get tasks that don't have a sprint assigned
   
   if (error) {
     console.error('Error fetching product backlog:', error);

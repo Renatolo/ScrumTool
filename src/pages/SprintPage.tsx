@@ -6,10 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { fetchSprintById } from "@/lib/supabase/sprints";
 import { useToast } from "@/hooks/use-toast";
 import KanbanBoard from "@/components/KanbanBoard";
-import { ArrowLeft, CalendarClock } from "lucide-react";
-import { format } from "date-fns";
+import { ArrowLeft, CalendarClock, AlertCircle } from "lucide-react";
+import { format, differenceInDays } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Sprint } from "@/types/sprint";
+import { Badge } from "@/components/ui/badge";
 
 const SprintPage = () => {
   const { sprintId } = useParams<{ sprintId: string }>();
@@ -18,6 +19,7 @@ const SprintPage = () => {
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [daysRemaining, setDaysRemaining] = useState<number | null>(null);
 
   useEffect(() => {
     const loadSprint = async () => {
@@ -30,6 +32,12 @@ const SprintPage = () => {
         
         if (foundSprint) {
           setSprint(foundSprint);
+          
+          // Calculate days remaining
+          const today = new Date();
+          const endDate = new Date(foundSprint.endDate);
+          const days = differenceInDays(endDate, today);
+          setDaysRemaining(days);
         } else {
           toast({
             title: "Error",
@@ -64,6 +72,14 @@ const SprintPage = () => {
     navigate('/');
   };
 
+  // Helper function to get the appropriate badge color
+  const getDaysRemainingBadgeColor = (days: number) => {
+    if (days < 0) return "destructive";
+    if (days <= 2) return "destructive";
+    if (days <= 5) return "warning";
+    return "success";
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-[60vh]">
@@ -93,11 +109,30 @@ const SprintPage = () => {
           </Button>
           <h1 className="text-2xl font-bold">Sprint Board</h1>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="text-sm text-muted-foreground">
-            <CalendarClock size={16} className="inline mr-1" />
-            {format(new Date(sprint.startDate), "MMM d")} - {format(new Date(sprint.endDate), "MMM d, yyyy")}
+        <div className="flex items-center gap-4">
+          <div className="text-sm flex items-center gap-2">
+            <CalendarClock size={16} className="text-muted-foreground" />
+            <span className="text-muted-foreground">
+              {format(new Date(sprint.startDate), "MMM d")} - {format(new Date(sprint.endDate), "MMM d, yyyy")}
+            </span>
           </div>
+          
+          {daysRemaining !== null && (
+            <Badge variant={getDaysRemainingBadgeColor(daysRemaining)} className="flex items-center gap-1 px-2 py-1">
+              {daysRemaining < 0 ? (
+                <>
+                  <AlertCircle size={14} />
+                  <span>Sprint ended {Math.abs(daysRemaining)} day{Math.abs(daysRemaining) !== 1 ? 's' : ''} ago</span>
+                </>
+              ) : (
+                <>
+                  <AlertCircle size={14} />
+                  <span>{daysRemaining} day{daysRemaining !== 1 ? 's' : ''} remaining</span>
+                </>
+              )}
+            </Badge>
+          )}
+          
           <Button variant="outline" onClick={handleGoHome}>Home</Button>
         </div>
       </div>
