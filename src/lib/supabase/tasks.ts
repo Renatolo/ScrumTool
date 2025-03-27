@@ -1,4 +1,3 @@
-
 import { supabase } from './client';
 import { type Task } from '@/types/task';
 
@@ -256,4 +255,43 @@ export async function fetchProjectMembers(projectId: string) {
   }
   
   return data.members || [];
+}
+
+/**
+ * Fetches all tasks for a specific project (including tasks in sprints)
+ * @param projectId - The project's ID
+ * @returns Array of tasks
+ */
+export async function fetchAllProjectTasks(projectId: string) {
+  console.log("Fetching ALL tasks for project ID:", projectId);
+  const { data, error } = await supabase
+    .from('tasks')
+    .select('*')
+    .eq('project_id', projectId);
+  
+  if (error) {
+    console.error('Error fetching project tasks:', error);
+    if (error.code === '42P01') {
+      // Table doesn't exist yet
+      return [];
+    }
+    throw error;
+  }
+  
+  // Map from database schema to our application schema
+  const mappedTasks = data.map(task => ({
+    id: task.id,
+    title: task.title,
+    description: task.description || '',
+    priority: task.priority || 'medium',
+    points: task.estimate || 0,
+    status: task.status as "todo" | "in-progress" | "in-review" | "done",
+    assignees: task.assignee_ids || [],
+    userId: task.user_id,
+    projectId: task.project_id,
+    sprintId: task.sprint_id,
+    completedAt: task.completed_at
+  }));
+  
+  return mappedTasks as Task[];
 }

@@ -23,12 +23,14 @@ interface BurndownChartRendererProps {
   chartData: BurndownDataPoint[];
   totalPoints: number;
   chartConfig: BurndownChartConfig;
+  timeScale: 'day' | 'week' | 'sprint';
 }
 
 const BurndownChartRenderer = ({ 
   chartData, 
   totalPoints, 
-  chartConfig 
+  chartConfig,
+  timeScale
 }: BurndownChartRendererProps) => {
   // Convert our chart config to the format expected by the UI component
   const uiChartConfig: Record<string, any> = {};
@@ -51,6 +53,7 @@ const BurndownChartRenderer = ({
             tickLine={false}
             axisLine={false}
             tick={{ fontSize: 12 }}
+            interval={timeScale === 'day' ? (chartData.length > 30 ? Math.floor(chartData.length / 15) : 0) : 0}
           />
           <YAxis 
             tickLine={false}
@@ -65,7 +68,13 @@ const BurndownChartRenderer = ({
               return (
                 <ChartTooltipContent>
                   <div className="text-xs font-medium mb-2 border-b pb-1">
-                    {format(new Date(payload[0].payload.date), "EEEE, MMM d, yyyy")}
+                    {timeScale === 'sprint' && payload[0].payload.sprintName ? (
+                      <>
+                        {payload[0].payload.sprintName} - {format(new Date(payload[0].payload.date), "MMM d, yyyy")}
+                      </>
+                    ) : (
+                      format(new Date(payload[0].payload.date), "EEEE, MMM d, yyyy")
+                    )}
                   </div>
                   {payload.map((entry, index) => {
                     if (entry.value === null) return null;

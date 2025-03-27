@@ -2,14 +2,15 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { fetchProductBacklog } from "@/lib/supabase/tasks";
-import { Task } from "@/types/task";
 import { InfoIcon } from "lucide-react";
 import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import BurndownChartRenderer from "./BurndownChartRenderer";
 import BurndownChartLoading from "./BurndownChartLoading";
 import { BurndownDataPoint, getDefaultChartConfig, generateBurndownData } from "@/utils/burndownChartUtils";
 import { fetchProjectSprints } from "@/lib/supabase/sprints";
+import { fetchAllProjectTasks } from "@/lib/supabase/tasks";
 import { Sprint } from "@/types/sprint";
+import { differenceInDays } from "date-fns";
 
 interface BurndownChartProps {
   projectId: string;
@@ -23,17 +24,18 @@ const BurndownChart = ({ projectId, projectName }: BurndownChartProps) => {
   const [remainingPoints, setRemainingPoints] = useState(0);
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
+  const [timeScale, setTimeScale] = useState<'day' | 'week' | 'sprint'>('day');
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
         
-        // Fetch all tasks for the project
-        const tasks = await fetchProductBacklog(projectId);
-        
         // Fetch all sprints to determine the project date range
         const sprints = await fetchProjectSprints(projectId);
+        
+        // Fetch ALL tasks for the project, not just backlog
+        const tasks = await fetchAllProjectTasks(projectId);
         
         if (sprints.length > 0) {
           // Find the earliest start date and latest end date across all sprints
@@ -45,8 +47,28 @@ const BurndownChart = ({ projectId, projectName }: BurndownChartProps) => {
             new Date(b.endDate).getTime() - new Date(a.endDate).getTime()
           );
           
-          setStartDate(sortedByStart[0].startDate);
-          setEndDate(sortedByEnd[0].endDate);
+          const projectStartDate = sortedByStart[0].startDate;
+          const projectEndDate = sortedByEnd[0].endDate;
+          
+          setStartDate(projectStartDate);
+          setEndDate(projectEndDate);
+          
+          // Determine time scale based on project duration
+          const projectDuration = differenceInDays(new Date(projectEndDate), new Date(projectStartDate));
+          let selectedTimeScale: 'day' | 'week' | 'sprint' = 'day';
+          
+          if (projectDuration > 90) {
+            // For very long projects (3+ months), use sprints
+            selectedTimeScale = 'sprint';
+          } else if (projectDuration > 21) {
+            // For medium-length projects (3+ weeks), use weeks
+            selectedTimeScale = 'week';
+          } else {
+            // For short projects, use days
+            selectedTimeScale = 'day';
+          }
+          
+          setTimeScale(selectedTimeScale);
           
           // Calculate total story points
           const total = tasks.reduce((sum, task) => sum + (task.points || 0), 0);
@@ -59,7 +81,14 @@ const BurndownChart = ({ projectId, projectName }: BurndownChartProps) => {
           setRemainingPoints(remaining);
           
           // Generate the burndown chart data
-          const data = generateBurndownData(tasks, total, sortedByStart[0].startDate, sortedByEnd[0].endDate);
+          const data = generateBurndownData(
+            tasks, 
+            total, 
+            projectStartDate, 
+            projectEndDate, 
+            selectedTimeScale,
+            sprints
+          );
           setChartData(data);
         } else {
           // If no sprints, use today as start and 2 weeks from now as end
@@ -69,6 +98,7 @@ const BurndownChart = ({ projectId, projectName }: BurndownChartProps) => {
           
           setStartDate(today.toISOString());
           setEndDate(twoWeeksLater.toISOString());
+          setTimeScale('day');
           
           // For empty projects, initialize with empty chart data with ideal line
           const total = tasks.reduce((sum, task) => sum + (task.points || 0), 0);
@@ -80,7 +110,14 @@ const BurndownChart = ({ projectId, projectName }: BurndownChartProps) => {
           setRemainingPoints(remaining);
           
           // Generate empty chart data
-          const data = generateBurndownData(tasks, total, today.toISOString(), twoWeeksLater.toISOString());
+          const data = generateBurndownData(
+            tasks, 
+            total, 
+            today.toISOString(), 
+            twoWeeksLater.toISOString(),
+            'day',
+            []
+          );
           setChartData(data);
         }
       } catch (error) {
@@ -130,7 +167,7 @@ const BurndownChart = ({ projectId, projectName }: BurndownChartProps) => {
                   <InfoIcon className="h-4 w-4 text-muted-foreground cursor-help" />
                 </TooltipTrigger>
                 <TooltipContent className="max-w-xs">
-                  <p>This chart shows the ideal vs. actual project progress across all sprints. Bars represent remaining story points each day.</p>
+                  <p>This chart shows the ideal vs. actual project progress across all sprints. Bars represent remaining story points {timeScale === 'day' ? 'each day' : timeScale === 'week' ? 'each week' : 'each sprint'}.</p>
                 </TooltipContent>
               </UITooltip>
             </TooltipProvider>
@@ -158,6 +195,7 @@ const BurndownChart = ({ projectId, projectName }: BurndownChartProps) => {
             chartData={chartData} 
             totalPoints={totalPoints} 
             chartConfig={chartConfig} 
+            timeScale={timeScale}
           />
         )}
       </CardContent>
