@@ -1,4 +1,3 @@
-
 import { useEffect, useState, forwardRef, useImperativeHandle } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -59,7 +58,7 @@ const KanbanColumn = ({ title, tasks, onEdit, onDelete, columnId }: KanbanColumn
   return (
     <Card ref={setNodeRef} className="flex-1 min-w-[250px] max-w-[350px] bg-secondary/30" id={columnId}>
       <CardHeader className="bg-muted/30 pb-2">
-        <CardTitle className="text-md font-medium">{title} ({tasks.length})</CardTitle>
+        <CardTitle className="text-md font-medium">{title} ({tasks.length})</CardHeader>
       </CardHeader>
       <CardContent className="p-2">
         <ScrollArea className="h-[calc(100vh-300px)]">
@@ -177,15 +176,24 @@ const KanbanBoard = forwardRef(({ sprintId }: KanbanBoardProps, ref) => {
     console.log(`Moving task ${taskId} from ${task.status} to ${newStatus}`);
 
     try {
+      // Set completedAt based on the new status
+      let completedAt = task.completedAt;
+      if (newStatus === 'done' && !completedAt) {
+        completedAt = new Date().toISOString();
+      } else if (newStatus !== 'done' && completedAt) {
+        completedAt = null;
+      }
+      
       // Optimistically update UI first
       setTasks(prevTasks =>
-        prevTasks.map(t => (t.id === taskId ? { ...t, status: newStatus } : t))
+        prevTasks.map(t => (t.id === taskId ? { ...t, status: newStatus, completedAt } : t))
       );
       
       // Then update the database
       const updatedTask: Task & { user_id: string } = { 
         ...task, 
         status: newStatus, 
+        completedAt,
         user_id: user.id 
       };
       

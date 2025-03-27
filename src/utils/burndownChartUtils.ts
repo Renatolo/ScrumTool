@@ -1,6 +1,6 @@
 
 import { Task } from "@/types/task";
-import { differenceInDays, eachDayOfInterval, format, isBefore, isAfter, isSameDay } from "date-fns";
+import { differenceInDays, eachDayOfInterval, format, isBefore, isAfter, isSameDay, parseISO } from "date-fns";
 
 export interface BurndownDataPoint {
   date: string;
@@ -57,18 +57,20 @@ export const generateBurndownData = (
     const daysElapsed = differenceInDays(date, start);
     const idealRemaining = Math.max(0, totalPoints - (daysElapsed * idealBurndownPerDay));
     
-    // For actual: count points of tasks that were not done before or on this day
+    // For actual: count points of tasks that were not completed before or on this date
     // Only include actual data up to today
     let actualRemaining = totalPoints;
     
     if (isBefore(date, today) || isSameDay(date, today)) {
-      // Calculate actual remaining points for each day
-      // This is a simplification - in a real app, you'd track when tasks moved to Done
+      // Calculate actual remaining points for each day using the completedAt field
       actualRemaining = tasks.reduce((remaining, task) => {
-        if (task.status === "done") {
-          // In a real app, you would check when the task was completed
-          // For this example, we'll assume a simple distribution
-          return remaining - (task.points || 0) / sprintDuration * Math.min(daysElapsed + 1, sprintDuration);
+        if (task.status === "done" && task.completedAt) {
+          const completedDate = parseISO(task.completedAt);
+          
+          // If task was completed on or before the current day in the chart
+          if (isBefore(completedDate, date) || isSameDay(completedDate, date)) {
+            return remaining - (task.points || 0);
+          }
         }
         return remaining;
       }, totalPoints);

@@ -1,4 +1,3 @@
-
 import { supabase } from './client';
 import { type Task } from '@/types/task';
 
@@ -32,7 +31,8 @@ export async function fetchTasks(userId: string) {
     assignees: task.assignee_ids || [],
     userId: task.user_id,
     projectId: task.project_id,
-    sprintId: task.sprint_id
+    sprintId: task.sprint_id,
+    completedAt: task.completed_at
   }));
   
   return mappedTasks as Task[];
@@ -44,6 +44,9 @@ export async function fetchTasks(userId: string) {
  * @returns The created task
  */
 export async function createTask(task: Omit<Task, 'id'> & { user_id: string }) {
+  // Set completed_at if status is done
+  const completedAt = task.status === 'done' ? new Date().toISOString() : null;
+  
   // Map from our application schema to database schema
   const dbTask = {
     title: task.title,
@@ -55,7 +58,8 @@ export async function createTask(task: Omit<Task, 'id'> & { user_id: string }) {
     user_id: task.user_id,
     sprint_id: task.sprintId,
     created_at: new Date().toISOString(),
-    project_id: task.projectId
+    project_id: task.projectId,
+    completed_at: completedAt
   };
   
   const { data, error } = await supabase
@@ -80,7 +84,8 @@ export async function createTask(task: Omit<Task, 'id'> & { user_id: string }) {
     assignees: data.assignee_ids || [],
     userId: data.user_id,
     projectId: data.project_id,
-    sprintId: data.sprint_id
+    sprintId: data.sprint_id,
+    completedAt: data.completed_at
   } as Task;
 }
 
@@ -90,6 +95,18 @@ export async function createTask(task: Omit<Task, 'id'> & { user_id: string }) {
  * @returns boolean indicating success
  */
 export async function updateTask(task: Task & { user_id?: string }) {
+  // Check if status is changing to/from 'done' to update completed_at
+  let completedAt = task.completedAt;
+  
+  // If task is being marked as done and doesn't have a completed_at value
+  if (task.status === 'done' && !completedAt) {
+    completedAt = new Date().toISOString();
+  } 
+  // If task is being moved from done to another status
+  else if (task.status !== 'done' && completedAt) {
+    completedAt = null;
+  }
+  
   // Map from our application schema to database schema
   const dbTask = {
     title: task.title,
@@ -99,7 +116,8 @@ export async function updateTask(task: Task & { user_id?: string }) {
     status: task.status,
     assignee_ids: task.assignees,
     project_id: task.projectId,
-    sprint_id: task.sprintId
+    sprint_id: task.sprintId,
+    completed_at: completedAt
   };
   
   // Only add user_id if it's provided
@@ -174,7 +192,8 @@ export async function fetchProductBacklog(projectId: string) {
     assignees: task.assignee_ids || [],
     userId: task.user_id,
     projectId: task.project_id,
-    sprintId: task.sprint_id
+    sprintId: task.sprint_id,
+    completedAt: task.completed_at
   }));
   
   return mappedTasks as Task[];
@@ -211,7 +230,8 @@ export async function fetchSprintTasks(sprintId: string) {
     assignees: task.assignee_ids || [],
     userId: task.user_id,
     projectId: task.project_id,
-    sprintId: task.sprint_id
+    sprintId: task.sprint_id,
+    completedAt: task.completed_at
   }));
   
   return mappedTasks as Task[];

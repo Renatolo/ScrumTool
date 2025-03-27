@@ -89,6 +89,14 @@ const EditTaskDialog = ({ task, open, onOpenChange, userId, onTaskUpdated }: Edi
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Determine completedAt value based on status
+    let completedAt = task.completedAt;
+    if (status === 'done' && !completedAt) {
+      completedAt = new Date().toISOString();
+    } else if (status !== 'done') {
+      completedAt = null;
+    }
+    
     const updatedTask: Task = {
       ...task,
       title,
@@ -97,6 +105,7 @@ const EditTaskDialog = ({ task, open, onOpenChange, userId, onTaskUpdated }: Edi
       points: Number(points),
       status,
       assignees,
+      completedAt
     };
     
     try {
@@ -109,7 +118,8 @@ const EditTaskDialog = ({ task, open, onOpenChange, userId, onTaskUpdated }: Edi
           priority: updatedTask.priority,
           estimate: updatedTask.points,
           status: updatedTask.status,
-          assignee_ids: updatedTask.assignees
+          assignee_ids: updatedTask.assignees,
+          completed_at: completedAt
         })
         .eq('id', updatedTask.id);
       
