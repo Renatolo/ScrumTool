@@ -1,3 +1,4 @@
+
 import { useEffect, useState, forwardRef, useImperativeHandle } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -58,7 +59,7 @@ const KanbanColumn = ({ title, tasks, onEdit, onDelete, columnId }: KanbanColumn
   return (
     <Card ref={setNodeRef} className="flex-1 min-w-[250px] max-w-[350px] bg-secondary/30" id={columnId}>
       <CardHeader className="bg-muted/30 pb-2">
-        <CardTitle className="text-md font-medium">{title} ({tasks.length})</CardHeader>
+        <CardTitle className="text-md font-medium">{title} ({tasks.length})</CardTitle>
       </CardHeader>
       <CardContent className="p-2">
         <ScrollArea className="h-[calc(100vh-300px)]">
@@ -181,7 +182,7 @@ const KanbanBoard = forwardRef(({ sprintId }: KanbanBoardProps, ref) => {
       if (newStatus === 'done' && !completedAt) {
         completedAt = new Date().toISOString();
       } else if (newStatus !== 'done' && completedAt) {
-        completedAt = null;
+        completedAt = undefined;
       }
       
       // Optimistically update UI first
@@ -218,9 +219,11 @@ const KanbanBoard = forwardRef(({ sprintId }: KanbanBoardProps, ref) => {
   };
 
   if (loading) {
-    return <div className="flex justify-center items-center h-[60vh]">
-      <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
-    </div>;
+    return (
+      <div className="flex justify-center items-center h-[60vh]">
+        <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
+      </div>
+    );
   }
 
   return (
