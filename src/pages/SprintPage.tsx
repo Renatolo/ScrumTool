@@ -76,8 +76,8 @@ const SprintPage = () => {
   const getDaysRemainingBadgeColor = (days: number) => {
     if (days < 0) return "destructive";
     if (days <= 2) return "destructive";
-    if (days <= 5) return "warning";
-    return "success";
+    if (days <= 5) return "secondary"; // Changed from "warning" to "secondary"
+    return "default"; // Changed from "success" to "default"
   };
 
   if (loading) {
