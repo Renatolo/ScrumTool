@@ -6,18 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Task } from "@/types/task";
-import { User } from "@/types/user";
-import { Avatar } from "@/components/ui/avatar";
-import { Check } from "lucide-react";
+import { Profile } from "@/types/user";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Check, UserIcon } from "lucide-react";
 import { fetchProjectMembers } from "@/lib/supabase/tasks";
 import { useToast } from "@/hooks/use-toast";
-
-// Temporary mock data, will be replaced with real data from Supabase
-const MOCK_USERS: User[] = [
-  { id: "1", name: "John Doe", email: "john.doe@example.com", avatarUrl: "https://github.com/shadcn.png" },
-  { id: "2", name: "Jane Smith", email: "jane.smith@example.com", avatarUrl: "https://github.com/shadcn.png" },
-  { id: "3", name: "Bob Johnson", email: "bob.johnson@example.com", avatarUrl: "https://github.com/shadcn.png" },
-];
+import { supabase } from "@/lib/supabase/client";
 
 interface EditTaskDialogProps {
   task: Task;
@@ -33,8 +27,9 @@ const EditTaskDialog = ({ task, open, onOpenChange, userId, onTaskUpdated }: Edi
   const [priority, setPriority] = useState(task.priority);
   const [points, setPoints] = useState(task.points.toString());
   const [status, setStatus] = useState(task.status);
-  const [assignees, setAssignees] = useState(task.assignees);
-  const [projectMembers, setProjectMembers] = useState<string[]>([]);
+  const [assignees, setAssignees] = useState(task.assignees || []);
+  const [memberProfiles, setMemberProfiles] = useState<Profile[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -43,32 +38,57 @@ const EditTaskDialog = ({ task, open, onOpenChange, userId, onTaskUpdated }: Edi
     setPriority(task.priority);
     setPoints(task.points.toString());
     setStatus(task.status);
-    setAssignees(task.assignees);
+    setAssignees(task.assignees || []);
   }, [task]);
 
   useEffect(() => {
     // Fetch project members when dialog opens
     if (open && task.projectId) {
-      const getProjectMembers = async () => {
-        try {
-          const members = await fetchProjectMembers(task.projectId!);
-          setProjectMembers(members);
-        } catch (error) {
-          console.error("Failed to fetch project members:", error);
-          toast({
-            title: "Error",
-            description: "Failed to load project members",
-            variant: "destructive",
-          });
-        }
-      };
-      
-      getProjectMembers();
+      loadProjectMembers();
     }
-  }, [open, task.projectId, toast]);
+  }, [open, task.projectId]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const loadProjectMembers = async () => {
+    if (!task.projectId) return;
+    
+    try {
+      setIsLoading(true);
+      
+      // Fetch project members
+      const members = await fetchProjectMembers(task.projectId);
+      
+      if (members.length > 0) {
+        // Fetch member profiles
+        const { data: profiles, error } = await supabase
+          .from('profiles')
+          .select('id, name, avatar_url')
+          .in('id', members);
+          
+        if (error) throw error;
+        
+        setMemberProfiles(profiles.map(profile => ({
+          id: profile.id,
+          name: profile.name || 'Unknown User',
+          avatar_url: profile.avatar_url || '',
+          created_at: '',
+          updated_at: ''
+        })));
+      }
+    } catch (error) {
+      console.error("Failed to fetch project members:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load project members",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     const updatedTask: Task = {
       ...task,
       title,
@@ -78,7 +98,39 @@ const EditTaskDialog = ({ task, open, onOpenChange, userId, onTaskUpdated }: Edi
       status,
       assignees,
     };
-    onTaskUpdated(updatedTask);
+    
+    try {
+      // First update the task in Supabase
+      const { error } = await supabase
+        .from('tasks')
+        .update({
+          title: updatedTask.title,
+          description: updatedTask.description,
+          priority: updatedTask.priority,
+          estimate: updatedTask.points,
+          status: updatedTask.status,
+          assignee_ids: updatedTask.assignees
+        })
+        .eq('id', updatedTask.id);
+      
+      if (error) throw error;
+      
+      // Then call the onTaskUpdated callback to update the UI
+      onTaskUpdated(updatedTask);
+      onOpenChange(false);
+      
+      toast({
+        title: "Success",
+        description: "Task updated successfully",
+      });
+    } catch (error) {
+      console.error("Error updating task:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update task",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleStatusChange = (value: string) => {
@@ -92,9 +144,6 @@ const EditTaskDialog = ({ task, open, onOpenChange, userId, onTaskUpdated }: Edi
         : [...prev, userId]
     );
   };
-
-  // Filter MOCK_USERS to only show project members
-  const filteredUsers = MOCK_USERS.filter(user => projectMembers.includes(user.id));
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -124,9 +173,13 @@ const EditTaskDialog = ({ task, open, onOpenChange, userId, onTaskUpdated }: Edi
           </div>
           <div className="space-y-2">
             <Label>Assignees</Label>
-            <div className="flex flex-wrap gap-2">
-              {filteredUsers.length > 0 ? (
-                filteredUsers.map((user) => (
+            {isLoading ? (
+              <div className="flex justify-center py-4">
+                <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full"></div>
+              </div>
+            ) : memberProfiles.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {memberProfiles.map((user) => (
                   <Button
                     key={user.id}
                     type="button"
@@ -135,18 +188,21 @@ const EditTaskDialog = ({ task, open, onOpenChange, userId, onTaskUpdated }: Edi
                     onClick={() => toggleAssignee(user.id)}
                   >
                     <Avatar className="w-6 h-6">
-                      <img src={user.avatarUrl} alt={user.name} />
+                      <AvatarImage src={user.avatar_url} alt={user.name} />
+                      <AvatarFallback>
+                        <UserIcon className="w-4 h-4" />
+                      </AvatarFallback>
                     </Avatar>
                     {user.name}
                     {assignees.includes(user.id) && (
                       <Check className="w-4 h-4" />
                     )}
                   </Button>
-                ))
-              ) : (
-                <p className="text-sm text-muted-foreground">No project members available</p>
-              )}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No project members available</p>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="priority">Priority</Label>

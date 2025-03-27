@@ -12,17 +12,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import EditTaskDialog from "./EditTaskDialog";
-import { User } from "@/types/user";
+import { Profile } from "@/types/user";
 import { Avatar, AvatarImage, AvatarFallback, AvatarGroup } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-
-const MOCK_USERS: User[] = [
-  { id: "1", name: "John Doe", email: "john.doe@example.com", avatarUrl: "https://github.com/shadcn.png" },
-  { id: "2", name: "Jane Smith", email: "jane.smith@example.com", avatarUrl: "https://github.com/shadcn.png" },
-  { id: "3", name: "Bob Johnson", email: "bob.johnson@example.com", avatarUrl: "https://github.com/shadcn.png" },
-];
+import { supabase } from "@/lib/supabase/client";
 
 interface SprintTaskProps {
   task: Task;
@@ -35,6 +30,8 @@ interface SprintTaskProps {
 
 const SprintTask = ({ task, sprints, onDelete, onUpdate, onMove, onMoveToBacklog }: SprintTaskProps) => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [assigneeProfiles, setAssigneeProfiles] = useState<Profile[]>([]);
+  
   const {
     attributes,
     listeners,
@@ -43,6 +40,35 @@ const SprintTask = ({ task, sprints, onDelete, onUpdate, onMove, onMoveToBacklog
     transition,
     isDragging,
   } = useSortable({ id: task.id });
+
+  useEffect(() => {
+    if (task.assignees && task.assignees.length > 0) {
+      loadAssigneeProfiles(task.assignees);
+    }
+  }, [task.assignees]);
+
+  const loadAssigneeProfiles = async (assigneeIds: string[]) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, name, avatar_url')
+        .in('id', assigneeIds);
+        
+      if (error) throw error;
+      
+      if (data) {
+        setAssigneeProfiles(data.map(profile => ({
+          id: profile.id,
+          name: profile.name || 'Unknown User',
+          avatar_url: profile.avatar_url || '',
+          created_at: '',
+          updated_at: ''
+        })));
+      }
+    } catch (error) {
+      console.error("Failed to fetch assignee profiles:", error);
+    }
+  };
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -192,20 +218,16 @@ const SprintTask = ({ task, sprints, onDelete, onUpdate, onMove, onMoveToBacklog
               <span className="text-xs text-muted-foreground">
                 {task.points} points
               </span>
-              {task.assignees?.length > 0 && (
+              {assigneeProfiles.length > 0 && (
                 <AvatarGroup>
-                  {task.assignees.map((userId) => {
-                    const user = MOCK_USERS.find((u) => u.id === userId);
-                    if (!user) return null;
-                    return (
-                      <Avatar key={user.id} className="w-6 h-6">
-                        <AvatarImage src={user.avatarUrl} alt={user.name} />
-                        <AvatarFallback>
-                          <UserIcon className="w-4 h-4" />
-                        </AvatarFallback>
-                      </Avatar>
-                    );
-                  })}
+                  {assigneeProfiles.map((user) => (
+                    <Avatar key={user.id} className="w-6 h-6">
+                      <AvatarImage src={user.avatar_url} alt={user.name} />
+                      <AvatarFallback>
+                        <UserIcon className="w-4 h-4" />
+                      </AvatarFallback>
+                    </Avatar>
+                  ))}
                 </AvatarGroup>
               )}
             </div>

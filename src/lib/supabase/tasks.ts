@@ -51,7 +51,7 @@ export async function createTask(task: Omit<Task, 'id'> & { user_id: string }) {
     status: task.status,
     priority: task.priority,
     estimate: task.points,
-    assignee_ids: task.assignees? task.assignees: [], // Store assignees in the database
+    assignee_ids: task.assignees ? task.assignees : [], // Store assignees in the database
     user_id: task.user_id,
     sprint_id: task.sprintId,
     created_at: new Date().toISOString(),
@@ -89,7 +89,7 @@ export async function createTask(task: Omit<Task, 'id'> & { user_id: string }) {
  * @param task - The task data with user_id
  * @returns boolean indicating success
  */
-export async function updateTask(task: Task & { user_id: string }) {
+export async function updateTask(task: Task & { user_id?: string }) {
   // Map from our application schema to database schema
   const dbTask = {
     title: task.title,
@@ -98,10 +98,16 @@ export async function updateTask(task: Task & { user_id: string }) {
     estimate: task.points,
     status: task.status,
     assignee_ids: task.assignees,
-    user_id: task.user_id,
     project_id: task.projectId,
     sprint_id: task.sprintId
   };
+  
+  // Only add user_id if it's provided
+  if (task.user_id) {
+    Object.assign(dbTask, { user_id: task.user_id });
+  }
+  
+  console.log('Updating task:', task.id, dbTask);
   
   const { error } = await supabase
     .from('tasks')
