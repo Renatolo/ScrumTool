@@ -1,3 +1,4 @@
+
 import { useEffect, useState, forwardRef, useImperativeHandle } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -42,10 +43,11 @@ const SortableTaskCard = ({ task, onEdit, onDelete }: { task: Task; onEdit: (tas
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
+    width: '100%', // Ensure the card takes full width of container
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="w-full">
       <TaskCard task={task} onEdit={onEdit} onDelete={onDelete} isDraggable={true} />
     </div>
   );
@@ -56,17 +58,19 @@ const KanbanColumn = ({ title, tasks, onEdit, onDelete, columnId }: KanbanColumn
   const { setNodeRef } = useDroppable({ id: columnId });
 
   return (
-    <Card ref={setNodeRef} className="flex-1 min-w-[250px] max-w-[350px] bg-secondary/30" id={columnId}>
+    <Card ref={setNodeRef} className="flex-1 min-w-[280px] max-w-[350px] bg-secondary/30 h-fit" id={columnId}>
       <CardHeader className="bg-muted/30 pb-2">
         <CardTitle className="text-md font-medium">{title} ({tasks.length})</CardTitle>
       </CardHeader>
       <CardContent className="p-2">
-        <ScrollArea className="h-[calc(100vh-300px)]">
-          {tasks.map(task => (
-            <SortableContext key={task.id} items={[task.id]} strategy={verticalListSortingStrategy}>
-              <SortableTaskCard task={task} onEdit={onEdit} onDelete={onDelete} />
-            </SortableContext>
-          ))}
+        <ScrollArea className="h-[calc(100vh-300px)] pr-2">
+          <div className="w-full space-y-3 pb-3">
+            {tasks.map(task => (
+              <SortableContext key={task.id} items={[task.id]} strategy={verticalListSortingStrategy}>
+                <SortableTaskCard task={task} onEdit={onEdit} onDelete={onDelete} />
+              </SortableContext>
+            ))}
+          </div>
         </ScrollArea>
       </CardContent>
     </Card>
@@ -236,7 +240,7 @@ const KanbanBoard = forwardRef(({ sprintId }: KanbanBoardProps, ref) => {
         onDragEnd={handleDragEnd}
         sensors={sensors}
       >
-        <div className="flex gap-4 overflow-x-auto pb-4 snap-x">
+        <div className="flex gap-4 overflow-x-auto pb-6 snap-x">
           <KanbanColumn title="To Do" tasks={tasks.filter(t => t.status === "todo")} onEdit={handleEditTask} onDelete={handleDeleteTask} columnId="column-todo" />
           <KanbanColumn title="In Progress" tasks={tasks.filter(t => t.status === "in-progress")} onEdit={handleEditTask} onDelete={handleDeleteTask} columnId="column-in-progress" />
           <KanbanColumn title="In Review" tasks={tasks.filter(t => t.status === "in-review")} onEdit={handleEditTask} onDelete={handleDeleteTask} columnId="column-in-review" />
@@ -244,7 +248,11 @@ const KanbanBoard = forwardRef(({ sprintId }: KanbanBoardProps, ref) => {
         </div>
 
         <DragOverlay>
-          {activeTask && <TaskCard task={activeTask} onEdit={() => {}} onDelete={() => {}} isDraggable />}
+          {activeTask && (
+            <div className="w-[300px]">
+              <TaskCard task={activeTask} onEdit={() => {}} onDelete={() => {}} isDraggable />
+            </div>
+          )}
         </DragOverlay>
       </DndContext>
 

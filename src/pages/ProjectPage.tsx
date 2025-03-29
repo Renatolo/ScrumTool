@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -23,7 +22,9 @@ import {
   Sprout,
   Users,
   UserCog,
-  UserPlus
+  UserPlus,
+  LayoutDashboard,
+  ArrowLeft
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/lib/supabase/client";
@@ -58,7 +59,6 @@ const ProjectPage = () => {
       try {
         setLoading(true);
         
-        // Fetch project data
         const projectData = await fetchProjectById(projectId);
         if (!projectData) {
           toast({
@@ -71,7 +71,6 @@ const ProjectPage = () => {
         }
         setProject(projectData);
 
-        // Fetch project members
         const memberIds = projectData.members || [];
         if (memberIds.length > 0) {
           const { data: memberProfiles } = await supabase
@@ -80,7 +79,6 @@ const ProjectPage = () => {
             .in('id', memberIds);
             
           if (memberProfiles) {
-            // Add role information to each member
             const membersWithRoles = memberProfiles.map(profile => ({
               ...profile,
               role: projectData.member_roles && projectData.member_roles[profile.id] 
@@ -91,11 +89,9 @@ const ProjectPage = () => {
           }
         }
         
-        // Fetch project sprints
         const projectSprints = await fetchProjectSprints(projectId);
         setSprints(projectSprints);
         
-        // Find active sprint
         const currentActiveSprint = await getActiveSprintForProject(projectId);
         setActiveSprint(currentActiveSprint);
       } catch (error) {
@@ -113,13 +109,16 @@ const ProjectPage = () => {
     fetchData();
   }, [projectId, user, navigate, toast, refreshTrigger]);
 
+  const handleGoToDashboard = () => {
+    navigate('/dashboard');
+  };
+
   const handleCreateSprint = () => {
     setShowCreateSprintDialog(true);
   };
 
   const handleSprintCreated = (newSprint: Sprint) => {
     setSprints([...sprints, newSprint]);
-    // If the new sprint is active (starts today), set it as the active sprint
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const sprintStart = new Date(newSprint.startDate);
@@ -133,7 +132,6 @@ const ProjectPage = () => {
 
   const refreshData = () => {
     setRefreshTrigger(prev => prev + 1);
-    // Also refresh the kanban board if we're on the active sprint tab
     if (kanbanBoardRef.current) {
       kanbanBoardRef.current.refreshBoard();
     }
@@ -177,13 +175,22 @@ const ProjectPage = () => {
     <div className="container py-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
         <div>
-          <h1 className="text-3xl font-bold mb-2 flex items-center gap-2">
-            <Sprout className="h-8 w-8" />
-            {project?.name}
-          </h1>
+          <div className="flex items-center gap-2 mb-2">
+            <Button variant="outline" size="icon" onClick={handleGoToDashboard}>
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <h1 className="text-3xl font-bold flex items-center gap-2">
+              <Sprout className="h-8 w-8" />
+              {project?.name}
+            </h1>
+          </div>
           <p className="text-muted-foreground">{project?.description}</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={handleGoToDashboard}>
+            <LayoutDashboard className="mr-2 h-4 w-4" />
+            Back to Dashboard
+          </Button>
           <Button variant="outline" onClick={handleInviteUser}>
             <UserPlus className="mr-2 h-4 w-4" />
             Invite Member
@@ -302,7 +309,6 @@ const ProjectPage = () => {
                     </div>
                   </CardHeader>
                   <CardFooter>
-                    {/* Only show edit button if current user is in this project */}
                     {project?.members?.includes(user?.id || "") && (
                       <Button variant="outline" className="w-full" onClick={() => handleEditMemberRole(member)}>
                         <UserCog className="mr-2 h-4 w-4" />
@@ -317,7 +323,6 @@ const ProjectPage = () => {
         </TabsContent>
       </Tabs>
       
-      {/* Dialogs */}
       <CreateSprintDialog
         open={showCreateSprintDialog}
         onClose={() => setShowCreateSprintDialog(false)}

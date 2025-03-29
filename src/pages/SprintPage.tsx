@@ -1,3 +1,4 @@
+
 import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -5,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { fetchSprintById } from "@/lib/supabase/sprints";
 import { useToast } from "@/hooks/use-toast";
 import KanbanBoard from "@/components/KanbanBoard";
-import { ArrowLeft, CalendarClock, AlertCircle } from "lucide-react";
+import { ArrowLeft, CalendarClock, AlertCircle, LayoutDashboard } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Sprint } from "@/types/sprint";
@@ -65,8 +66,8 @@ const SprintPage = () => {
     }
   };
 
-  const handleGoHome = () => {
-    navigate('/');
+  const handleGoToDashboard = () => {
+    navigate('/dashboard');
   };
 
   const getDaysRemainingBadgeColor = (days: number) => {
@@ -90,7 +91,7 @@ const SprintPage = () => {
         <div className="text-center">
           <h2 className="text-xl font-semibold text-red-500">Sprint not found</h2>
           <p className="text-muted-foreground">This sprint may have been deleted or doesn't exist.</p>
-          <Button onClick={handleGoHome} className="mt-4">Return to Home</Button>
+          <Button onClick={handleGoToDashboard} className="mt-4">Return to Dashboard</Button>
         </div>
       </div>
     );
@@ -129,7 +130,15 @@ const SprintPage = () => {
             </Badge>
           )}
           
-          <Button variant="outline" onClick={handleGoHome}>Home</Button>
+          <Button variant="outline" onClick={handleBackToProject}>
+            <ArrowLeft className="h-4 w-4 mr-1" />
+            Back to Project
+          </Button>
+          
+          <Button variant="outline" onClick={handleGoToDashboard}>
+            <LayoutDashboard className="h-4 w-4 mr-1" />
+            Dashboard
+          </Button>
         </div>
       </div>
 

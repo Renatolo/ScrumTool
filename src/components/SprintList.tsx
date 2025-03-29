@@ -1,8 +1,9 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Calendar, ChevronRight, Trash2, Clock } from 'lucide-react';
+import { Calendar, ChevronRight, Trash2, Clock, ArrowUp, History } from 'lucide-react';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { Sprint } from '@/types/sprint';
@@ -208,24 +209,68 @@ const SprintList = ({ sprints, projectId, title, onSprintDeleted }: SprintListPr
     </Card>
   );
 
-  if (sprints.length === 0) {
+  const renderSprintCategory = (
+    categoryTitle: string,
+    categoryIcon: React.ReactNode,
+    categoryItems: Sprint[],
+    variant: string = 'default',
+    emptyMessage: string
+  ) => {
     return (
-      <div className="text-center py-12">
-        <h3 className="text-xl font-medium text-muted-foreground">No sprints yet</h3>
-        <p className="mt-2">Create your first sprint to start tracking tasks.</p>
+      <div className="space-y-4 mb-8">
+        <div className="flex items-center gap-2 border-b pb-2">
+          <h3 className="text-lg font-medium">{categoryTitle}</h3>
+          {categoryIcon}
+          <Badge variant={variant as any}>{categoryItems.length}</Badge>
+        </div>
+        {categoryItems.length > 0 ? (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {categoryItems.map(sprint => (
+              <SprintCard 
+                key={sprint.id} 
+                sprint={sprint} 
+                handleNavigateToSprint={handleNavigateToSprint}
+                handleDeleteSprint={handleDeleteSprint}
+                isDeleting={isDeleting}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8 bg-muted/20 rounded-lg">
+            <p className="text-muted-foreground">{emptyMessage}</p>
+          </div>
+        )}
       </div>
     );
-  }
+  };
 
   return (
     <div className="space-y-4">
       {title && <h2 className="text-xl font-medium mb-6">{title}</h2>}
       
-      {renderSprintCategory('Current Sprint', <Badge className="bg-green-600">Active</Badge>, sortedSprints.current, 'default')}
+      {renderSprintCategory(
+        'Current Sprint', 
+        <Badge className="bg-green-600">Active</Badge>, 
+        sortedSprints.current, 
+        'default',
+        'No active sprints at the moment'
+      )}
       
-      {renderSprintCategory('Upcoming Sprints', <Clock className="h-4 w-4 text-blue-500" />, sortedSprints.future, 'secondary')}
+      {renderSprintCategory(
+        'Upcoming Sprints', 
+        <ArrowUp className="h-4 w-4 text-blue-500" />, 
+        sortedSprints.future, 
+        'secondary',
+        'No upcoming sprints scheduled'
+      )}
       
-      {renderSprintCategory('Past Sprints', <Clock className="h-4 w-4 text-gray-500" />, sortedSprints.past, 'outline')}
+      {renderSprintCategory(
+        'Past Sprints', 
+        <History className="h-4 w-4 text-gray-500" />, 
+        sortedSprints.past, 
+        'outline',
+        'No past sprints'
+      )}
     </div>
   );
 };

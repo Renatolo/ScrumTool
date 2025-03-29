@@ -50,37 +50,34 @@ const TaskCard = ({ task, onEdit, onDelete, onMove, showMoveButton = false, isDr
   };
 
   return (
-    <Card className={`mb-4 ${isDraggable ? 'cursor-grab active:cursor-grabbing' : ''} hover:shadow-md transition-shadow`}>
-      <CardHeader className="pb-2">
+    <Card className={`mb-2 ${isDraggable ? 'cursor-grab active:cursor-grabbing' : ''} hover:shadow-md transition-shadow w-full`}>
+      <CardHeader className="pb-2 px-3 pt-3">
         <div className="flex justify-between items-start">
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <CardTitle className="text-lg truncate">{task.title}</CardTitle>
+                <CardTitle className="text-sm truncate max-w-[150px] md:max-w-[200px]">{task.title}</CardTitle>
               </TooltipTrigger>
               <TooltipContent>
                 <p>{task.title}</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
-          <div className="flex gap-1">
+          <div className="flex gap-1 flex-wrap justify-end">
             <Badge variant="outline" className={priorityColors[task.priority as keyof typeof priorityColors] || "bg-gray-100"}>
               {task.priority}
             </Badge>
-            <Badge variant="outline" className={statusColors[task.status as keyof typeof statusColors] || "bg-gray-100"}>
-              {task.status.replace("-", " ")}
-            </Badge>
           </div>
         </div>
-        <CardDescription className="text-sm text-gray-500">
+        <CardDescription className="text-xs text-gray-500">
           Points: {task.points}
         </CardDescription>
       </CardHeader>
-      <CardContent className="pb-2">
+      <CardContent className="pb-1 px-3">
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <p className="text-sm text-gray-700 truncate">{task.description}</p>
+              <p className="text-xs text-gray-700 truncate max-h-8 overflow-hidden">{task.description}</p>
             </TooltipTrigger>
             <TooltipContent>
               <p className="max-w-xs">{task.description}</p>
@@ -88,35 +85,35 @@ const TaskCard = ({ task, onEdit, onDelete, onMove, showMoveButton = false, isDr
           </Tooltip>
         </TooltipProvider>
       </CardContent>
-      <CardFooter className="flex justify-end pt-2 gap-2">
+      <CardFooter className="flex justify-end pt-1 pb-2 px-2 gap-1">
         <Button
           size="sm"
           variant="ghost"
           onClick={handleEditClick}
-          className="z-10"
+          className="z-10 h-7 w-7 p-0"
           type="button"
         >
-          <Edit size={16} />
+          <Edit size={14} />
         </Button>
         {showMoveButton && onMove && (
           <Button
             size="sm"
             variant="ghost"
             onClick={handleMoveClick}
-            className="text-blue-500 hover:text-blue-700 z-10"
+            className="text-blue-500 hover:text-blue-700 z-10 h-7 w-7 p-0"
             type="button"
           >
-            <ArrowRight size={16} />
+            <ArrowRight size={14} />
           </Button>
         )}
         <Button
           size="sm"
           variant="ghost"
           onClick={handleDeleteClick}
-          className="text-red-500 hover:text-red-700 z-10"
+          className="text-red-500 hover:text-red-700 z-10 h-7 w-7 p-0"
           type="button"
         >
-          <Trash2 size={16} />
+          <Trash2 size={14} />
         </Button>
       </CardFooter>
     </Card>
