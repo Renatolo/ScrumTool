@@ -207,7 +207,7 @@ export async function fetchProjectSprints(projectId: string) {
     .from('sprints')
     .select('id, name, start_date, end_date, project_id')
     .eq('project_id', projectId)
-    .order('start_date', { ascending: false });
+    .order('start_date');
 
   if (error) {
     console.error('Error fetching project sprints:', error);

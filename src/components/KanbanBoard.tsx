@@ -1,4 +1,3 @@
-
 import { useEffect, useState, forwardRef, useImperativeHandle } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -63,11 +62,11 @@ const KanbanColumn = ({ title, tasks, onEdit, onDelete, columnId }: KanbanColumn
       </CardHeader>
       <CardContent className="p-2">
         <ScrollArea className="h-[calc(100vh-300px)]">
-          <SortableContext items={tasks.map(task => task.id)} strategy={verticalListSortingStrategy}>
-            {tasks.map(task => (
-              <SortableTaskCard key={task.id} task={task} onEdit={onEdit} onDelete={onDelete} />
-            ))}
-          </SortableContext>
+          {tasks.map(task => (
+            <SortableContext key={task.id} items={[task.id]} strategy={verticalListSortingStrategy}>
+              <SortableTaskCard task={task} onEdit={onEdit} onDelete={onDelete} />
+            </SortableContext>
+          ))}
         </ScrollArea>
       </CardContent>
     </Card>
@@ -237,7 +236,7 @@ const KanbanBoard = forwardRef(({ sprintId }: KanbanBoardProps, ref) => {
         onDragEnd={handleDragEnd}
         sensors={sensors}
       >
-        <div className="flex gap-4 overflow-x-auto pb-4">
+        <div className="flex gap-4 overflow-x-auto pb-4 snap-x">
           <KanbanColumn title="To Do" tasks={tasks.filter(t => t.status === "todo")} onEdit={handleEditTask} onDelete={handleDeleteTask} columnId="column-todo" />
           <KanbanColumn title="In Progress" tasks={tasks.filter(t => t.status === "in-progress")} onEdit={handleEditTask} onDelete={handleDeleteTask} columnId="column-in-progress" />
           <KanbanColumn title="In Review" tasks={tasks.filter(t => t.status === "in-review")} onEdit={handleEditTask} onDelete={handleDeleteTask} columnId="column-in-review" />

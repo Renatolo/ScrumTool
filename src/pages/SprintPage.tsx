@@ -1,4 +1,3 @@
-
 import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -27,13 +26,11 @@ const SprintPage = () => {
 
       try {
         setLoading(true);
-        // Fetch the specific sprint by ID
         const foundSprint = await fetchSprintById(sprintId);
         
         if (foundSprint) {
           setSprint(foundSprint);
           
-          // Calculate days remaining
           const today = new Date();
           const endDate = new Date(foundSprint.endDate);
           const days = differenceInDays(endDate, today);
@@ -72,12 +69,11 @@ const SprintPage = () => {
     navigate('/');
   };
 
-  // Helper function to get the appropriate badge color based on days remaining
   const getDaysRemainingBadgeColor = (days: number) => {
     if (days < 0) return "destructive";
     if (days <= 2) return "destructive";
-    if (days <= 5) return "secondary"; // Medium urgency
-    return "default"; // Low urgency
+    if (days <= 5) return "secondary";
+    return "default";
   };
 
   if (loading) {
@@ -101,15 +97,15 @@ const SprintPage = () => {
   }
 
   return (
-    <div className="container mx-auto p-4">
-      <div className="flex justify-between items-center mb-4">
+    <div className="container mx-auto p-4 max-w-full">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-2">
         <div className="flex items-center gap-2">
           <Button variant="outline" size="icon" onClick={handleBackToProject}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <h1 className="text-2xl font-bold">Sprint Board</h1>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-4">
           <div className="text-sm flex items-center gap-2">
             <CalendarClock size={16} className="text-muted-foreground" />
             <span className="text-muted-foreground">
@@ -137,7 +133,9 @@ const SprintPage = () => {
         </div>
       </div>
 
-      {sprintId && <KanbanBoard sprintId={sprintId} />}
+      <div className="overflow-x-auto">
+        {sprintId && <KanbanBoard sprintId={sprintId} />}
+      </div>
     </div>
   );
 };
