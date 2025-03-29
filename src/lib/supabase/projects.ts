@@ -1,250 +1,147 @@
 
 import { supabase } from './client';
-import { type Project } from '@/types/user';
+import { Project } from '@/types/user';
 
-/**
- * Fetches all projects a user has access to
- * @param userId - The user's ID
- * @returns Array of projects
- */
-export async function fetchProjects(userId: string) {
+export const fetchProjects = async (userId: string) => {
   try {
-    // Get projects the user owns
-    const { data: ownedProjects, error: ownedError } = await supabase
-      .from('projects')
-      .select('*')
-      .eq('user_id', userId);
-    
-    if (ownedError) throw ownedError;
-    
-    // Get projects the user is a member of
-    const { data: memberProjects, error: memberError } = await supabase
+    const { data, error } = await supabase
       .from('projects')
       .select('*')
       .contains('members', [userId]);
+      
+    if (error) throw error;
     
-    if (memberError) throw memberError;
-    
-    // Combine and deduplicate projects
-    const allProjects = [...(ownedProjects || []), ...(memberProjects || [])];
-    const uniqueProjects = Array.from(
-      new Map(allProjects.map((project) => [project.id, project])).values()
-    );
-    
-    return uniqueProjects as Project[];
+    return data as Project[];
   } catch (error) {
     console.error('Error fetching projects:', error);
-    return [];
+    throw error;
   }
-}
+};
 
-/**
- * Fetches a single project by ID
- * @param projectId - The project's ID
- * @returns The project or null if not found
- */
-export async function fetchProject(projectId: string): Promise<Project | null> {
+export const fetchProjectById = async (projectId: string) => {
   try {
     const { data, error } = await supabase
       .from('projects')
       .select('*')
       .eq('id', projectId)
       .single();
-    
+      
     if (error) throw error;
     
     return data as Project;
   } catch (error) {
     console.error('Error fetching project:', error);
-    return null;
+    throw error;
   }
-}
+};
 
-/**
- * Creates a new project
- * @param project - The project data
- * @returns The created project
- */
-export async function createProject(project: Omit<Project, 'id'> & { user_id: string }) {
-  const { data, error } = await supabase
-    .from('projects')
-    .insert(project)
-    .select()
-    .single();
-  
-  if (error) {
+export const createProject = async (project: Partial<Project>) => {
+  try {
+    const { data, error } = await supabase
+      .from('projects')
+      .insert(project)
+      .select()
+      .single();
+      
+    if (error) throw error;
+    
+    return data as Project;
+  } catch (error) {
     console.error('Error creating project:', error);
     throw error;
   }
-  
-  return data as Project;
-}
+};
 
-/**
- * Joins a project using the project code
- * @param code - The project join code
- * @param userId - The user's ID
- * @returns The joined project
- */
-export async function joinProject(code: string, userId: string) {
+export const joinProject = async (projectCode: string, userId: string) => {
   try {
-    // Find the project with the given code
+    // Find the project by code
     const { data, error } = await supabase
       .from('projects')
       .select('*')
-      .eq('code', code)
-      .maybeSingle();
+      .eq('code', projectCode)
+      .single();
     
     if (error) throw error;
+    if (!data) throw new Error('Project not found');
     
-    if (!data) {
-      throw new Error('Project not found with this code');
+    const project = data as Project;
+    
+    // Check if user is already a member
+    const members = project.members || [];
+    if (members.includes(userId)) {
+      return project;
     }
     
-    // If user is already a member, return an error with project name
-    if (data.members && data.members.includes(userId)) {
-      throw new Error(`You are already a member of "${data.name}"`);
-    }
+    // Add user to members array
+    const updatedMembers = [...members, userId];
     
-    // Add user to project members
-    const updatedMembers = [...(data.members || []), userId];
+    // Initialize member_roles if needed and set default role to developer
+    const memberRoles = project.member_roles || {};
+    memberRoles[userId] = 'developer';
     
+    // Update the project
     const { error: updateError } = await supabase
       .from('projects')
-      .update({ members: updatedMembers })
-      .eq('id', data.id);
+      .update({ 
+        members: updatedMembers,
+        member_roles: memberRoles
+      })
+      .eq('id', project.id);
       
     if (updateError) throw updateError;
     
     // Return the updated project
-    return {
-      ...data,
-      members: updatedMembers
-    } as Project;
+    const updatedProject = {
+      ...project,
+      members: updatedMembers,
+      member_roles: memberRoles
+    };
+    
+    return updatedProject;
   } catch (error) {
     console.error('Error joining project:', error);
     throw error;
   }
-}
+};
 
-/**
- * Adds a user to a project by user ID
- * @param projectId - The project ID
- * @param userId - The ID of the user to add
- * @returns Boolean indicating success
- */
-export async function inviteUserByEmail(projectId: string, userId: string) {
+export const inviteUserByEmail = async (projectId: string, userId: string) => {
   try {
-    // Get the project to check if user is already a member
-    const { data: projectData, error: projectError } = await supabase
+    // Get the current project
+    const { data: project, error } = await supabase
       .from('projects')
-      .select('members, name')
+      .select('*')
       .eq('id', projectId)
       .single();
+      
+    if (error) throw error;
     
-    if (projectError) throw projectError;
-    
-    // If user is already a member, no need to proceed
-    if (projectData.members && projectData.members.includes(userId)) {
+    // Check if user is already a member
+    const members = project.members || [];
+    if (members.includes(userId)) {
       throw new Error('User is already a member of this project');
     }
     
-    // Add user to project members
-    const updatedMembers = [...(projectData.members || []), userId];
+    // Add user to the project
+    const updatedMembers = [...members, userId];
     
+    // Initialize member_roles if needed and set default role to developer
+    const memberRoles = project.member_roles || {};
+    memberRoles[userId] = 'developer';
+    
+    // Update the project
     const { error: updateError } = await supabase
       .from('projects')
-      .update({ members: updatedMembers })
-      .eq('id', projectId);
+      .update({ 
+        members: updatedMembers,
+        member_roles: memberRoles
+      })
+      .eq('id', project.id);
       
     if (updateError) throw updateError;
     
-    console.log(`User ${userId} added to project ${projectId}`);
-    return true;
+    return { message: 'User added to project' };
   } catch (error) {
-    console.error('Error adding user to project:', error);
+    console.error('Error inviting user:', error);
     throw error;
   }
-}
-
-/**
- * Removes a user from a project
- * @param projectId - The project ID
- * @param userId - The ID of the user to remove
- * @returns Boolean indicating success
- */
-export async function removeUserFromProject(projectId: string, userId: string) {
-  try {
-    // Get the project to check if user is a member
-    const { data: projectData, error: projectError } = await supabase
-      .from('projects')
-      .select('members, user_id')
-      .eq('id', projectId)
-      .single();
-    
-    if (projectError) throw projectError;
-    
-    // Don't allow removing the owner
-    if (projectData.user_id === userId) {
-      throw new Error('Cannot remove the project owner');
-    }
-    
-    // Check if user is a member
-    if (!projectData.members || !projectData.members.includes(userId)) {
-      throw new Error('User is not a member of this project');
-    }
-    
-    // Remove user from project members
-    const updatedMembers = projectData.members.filter(id => id !== userId);
-    
-    const { error: updateError } = await supabase
-      .from('projects')
-      .update({ members: updatedMembers })
-      .eq('id', projectId);
-      
-    if (updateError) throw updateError;
-    
-    return true;
-  } catch (error) {
-    console.error('Error removing user from project:', error);
-    throw error;
-  }
-}
-
-/**
- * Deletes a project and its associated data
- * @param projectId - The project ID
- * @returns boolean indicating success
- */
-export async function deleteProject(projectId: string) {
-  try {
-    // Delete all tasks associated with this project
-    const { error: tasksError } = await supabase
-      .from('tasks')
-      .delete()
-      .eq('project_id', projectId);
-    
-    if (tasksError) throw tasksError;
-    
-    // Delete all sprints associated with this project
-    const { error: sprintsError } = await supabase
-      .from('sprints')
-      .delete()
-      .eq('project_id', projectId);
-    
-    if (sprintsError) throw sprintsError;
-    
-    // Finally delete the project
-    const { error: projectError } = await supabase
-      .from('projects')
-      .delete()
-      .eq('id', projectId);
-    
-    if (projectError) throw projectError;
-    
-    return true;
-  } catch (error) {
-    console.error('Error deleting project:', error);
-    throw error;
-  }
-}
+};

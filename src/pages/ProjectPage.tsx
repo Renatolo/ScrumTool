@@ -1,567 +1,348 @@
+
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Plus, Trash, Users, BarChart, LayoutDashboard } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { fetchProjects } from "@/lib/supabase/projects";
-import { fetchProjectSprints } from "@/lib/supabase/sprints";
-import { fetchSprintTasks } from "@/lib/supabase/tasks";
-import CreateSprintDialog from "@/components/CreateSprintDialog";
-import { Project } from "@/types/user";
+import { Project, ProjectMember } from "@/types/user";
 import { Sprint } from "@/types/sprint";
-import { Task } from "@/types/task";
-import ProductBacklog from "@/components/ProductBacklog";
-import SprintList from "@/components/SprintList";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { fetchProjectById } from "@/lib/supabase/projects";
+import { fetchProjectSprints, getActiveSprintForProject } from "@/lib/supabase/sprints";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { 
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+  Bell, 
+  CalendarDays, 
+  ClipboardList, 
+  Code, 
+  ExternalLink, 
+  LineChart, 
+  Plus, 
+  Share2, 
+  Sprout,
+  Users,
+  UserCog,
+  UserPlus
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/lib/supabase/client";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import InviteUserDialog from "@/components/InviteUserDialog";
+import { format } from "date-fns";
+import ProductBacklog from "@/components/ProductBacklog";
+import CreateSprintDialog from "@/components/CreateSprintDialog";
+import KanbanBoard from "@/components/KanbanBoard";
 import BurndownChart from "@/components/BurndownChart";
+import InviteUserDialog from "@/components/InviteUserDialog";
+import EditMemberRoleDialog from "@/components/EditMemberRoleDialog";
 
 const ProjectPage = () => {
-  const { projectId } = useParams<{ projectId: string }>();
+  const { projectId } = useParams();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
+  const kanbanBoardRef = useRef<{ refreshBoard: () => void }>(null);
   const [project, setProject] = useState<Project | null>(null);
+  const [projectMembers, setProjectMembers] = useState<ProjectMember[]>([]);
   const [sprints, setSprints] = useState<Sprint[]>([]);
   const [activeSprint, setActiveSprint] = useState<Sprint | null>(null);
-  const [futureSprints, setFutureSprints] = useState<Sprint[]>([]);
-  const [pastSprints, setPastSprints] = useState<Sprint[]>([]);
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [userProfiles, setUserProfiles] = useState<Record<string, { name: string; id: string }>>({});
-  const [projectStats, setProjectStats] = useState({
-    totalSprints: 0,
-    totalTasks: 0,
-    completionRate: 0,
-    teamSize: 0,
-  });
   const [loading, setLoading] = useState(true);
-  const [isCreateSprintOpen, setIsCreateSprintOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [isRemovingUser, setIsRemovingUser] = useState(false);
-  const navigate = useNavigate();
-  const [isInviteUserOpen, setIsInviteUserOpen] = useState(false);
+  const [showCreateSprintDialog, setShowCreateSprintDialog] = useState(false);
+  const [showInviteDialog, setShowInviteDialog] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [editMember, setEditMember] = useState<ProjectMember | null>(null);
 
   useEffect(() => {
-    const loadProject = async () => {
-      if (!projectId || !user) return;
-      
+    if (!projectId || !user) return;
+
+    const fetchData = async () => {
       try {
         setLoading(true);
-        const projectsData = await fetchProjects(user.id);
-        const projectData = projectsData.find(p => p.id === projectId);
-        setProject(projectData || null);
         
+        // Fetch project data
+        const projectData = await fetchProjectById(projectId);
+        if (!projectData) {
+          toast({
+            title: "Project not found",
+            description: "The project you're looking for doesn't exist or you don't have access to it.",
+            variant: "destructive",
+          });
+          navigate("/dashboard");
+          return;
+        }
+        setProject(projectData);
+
+        // Fetch project members
+        const memberIds = projectData.members || [];
+        if (memberIds.length > 0) {
+          const { data: memberProfiles } = await supabase
+            .from('profiles')
+            .select('id, name, avatar_url')
+            .in('id', memberIds);
+            
+          if (memberProfiles) {
+            // Add role information to each member
+            const membersWithRoles = memberProfiles.map(profile => ({
+              ...profile,
+              role: projectData.member_roles && projectData.member_roles[profile.id] 
+                ? projectData.member_roles[profile.id] 
+                : "developer"
+            }));
+            setProjectMembers(membersWithRoles);
+          }
+        }
+        
+        // Fetch project sprints
         const projectSprints = await fetchProjectSprints(projectId);
         setSprints(projectSprints);
         
-        updateSprintCategories(projectSprints);
-        
-        if (projectData && projectData.members && projectData.members.length > 0) {
-          const { data: profiles } = await supabase
-            .from('profiles')
-            .select('id, name')
-            .in('id', projectData.members);
-          
-          if (profiles && profiles.length > 0) {
-            const userMap: Record<string, { name: string; id: string }> = {};
-            profiles.forEach(profile => {
-              userMap[profile.id] = { 
-                name: profile.name || 'Unknown User',
-                id: profile.id
-              };
-            });
-            setUserProfiles(userMap);
-          }
-          
-          const allProjectTasks = await supabase
-            .from('tasks')
-            .select('*')
-            .eq('project_id', projectId);
-          
-          if (allProjectTasks.data) {
-            const totalTasks = allProjectTasks.data.length;
-            const completedTasks = allProjectTasks.data.filter(t => t.status === "done").length;
-            const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-            
-            setProjectStats({
-              totalSprints: projectSprints.length,
-              totalTasks: totalTasks,
-              completionRate: completionRate,
-              teamSize: projectData?.members?.length || 1,
-            });
-          }
-        }
+        // Find active sprint
+        const currentActiveSprint = await getActiveSprintForProject(projectId);
+        setActiveSprint(currentActiveSprint);
       } catch (error) {
-        console.error('Error loading project data:', error);
+        console.error("Error fetching project data:", error);
         toast({
-          title: 'Error',
-          description: 'Failed to load project data',
-          variant: 'destructive',
+          title: "Error",
+          description: "Failed to load project data",
+          variant: "destructive",
         });
       } finally {
         setLoading(false);
       }
     };
-    
-    loadProject();
-  }, [projectId, user, toast]);
-  
-  const updateSprintCategories = (sprintList: Sprint[]) => {
+
+    fetchData();
+  }, [projectId, user, navigate, toast, refreshTrigger]);
+
+  const handleCreateSprint = () => {
+    setShowCreateSprintDialog(true);
+  };
+
+  const handleSprintCreated = (newSprint: Sprint) => {
+    setSprints([...sprints, newSprint]);
+    // If the new sprint is active (starts today), set it as the active sprint
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const sprintStart = new Date(newSprint.startDate);
+    sprintStart.setHours(0, 0, 0, 0);
     
-    const current = sprintList.find(s => {
-      const startDate = new Date(s.startDate);
-      startDate.setHours(0, 0, 0, 0);
-      return startDate.getTime() === today.getTime();
-    });
-    
-    const active = current || sprintList.find(s => {
-      const startDate = new Date(s.startDate);
-      const endDate = new Date(s.endDate);
-      startDate.setHours(0, 0, 0, 0);
-      return startDate < today && endDate >= today;
-    }) || null;
-    
-    const future = sprintList.filter(s => {
-      const startDate = new Date(s.startDate);
-      startDate.setHours(0, 0, 0, 0);
-      return startDate > today;
-    }).sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
-    
-    const past = sprintList.filter(s => {
-      const endDate = new Date(s.endDate);
-      return endDate < today;
-    });
-    
-    setActiveSprint(active);
-    setFutureSprints(future);
-    setPastSprints(past);
-    
-    if (active) {
-      loadSprintTasks(active.id);
+    if (sprintStart.getTime() === today.getTime()) {
+      setActiveSprint(newSprint);
+    }
+    setShowCreateSprintDialog(false);
+  };
+
+  const refreshData = () => {
+    setRefreshTrigger(prev => prev + 1);
+    // Also refresh the kanban board if we're on the active sprint tab
+    if (kanbanBoardRef.current) {
+      kanbanBoardRef.current.refreshBoard();
+    }
+  };
+
+  const handleInviteUser = () => {
+    setShowInviteDialog(true);
+  };
+  
+  const handleEditMemberRole = (member: ProjectMember) => {
+    setEditMember(member);
+  };
+
+  const getRoleLabel = (role: string) => {
+    switch(role) {
+      case "product_owner": return "Product Owner";
+      case "scrum_master": return "Scrum Master";
+      case "developer": return "Developer";
+      default: return "Developer";
     }
   };
   
-  const loadSprintTasks = async (sprintId: string) => {
-    try {
-      const sprintTasks = await fetchSprintTasks(sprintId);
-      setTasks(sprintTasks);
-    } catch (error) {
-      console.error('Error loading sprint tasks:', error);
-    }
-  };
-  
-  const handleSprintCreated = (newSprint: Sprint) => {
-    console.log('New sprint created:', newSprint);
-    
-    if (projectId) {
-      loadProject();
-    }
-    
-    toast({
-      title: 'Success',
-      description: 'Sprint created successfully',
-    });
-  };
-
-  const handleSprintDeleted = () => {
-    console.log('Sprint deleted, refreshing project data');
-    loadProject();
-  };
-
-  const handleGoHome = () => {
-    navigate('/');
-  };
-
-  const handleGoDashboard = () => {
-    navigate('/dashboard');
-  };
-  
-  const handleDeleteProject = async () => {
-    if (!projectId || !user) return;
-    
-    try {
-      setIsDeleting(true);
-      
-      await supabase
-        .from('tasks')
-        .delete()
-        .eq('project_id', projectId);
-      
-      await supabase
-        .from('sprints')
-        .delete()
-        .eq('project_id', projectId);
-      
-      await supabase
-        .from('projects')
-        .delete()
-        .eq('id', projectId);
-      
-      toast({
-        title: 'Success',
-        description: 'Project and all associated items deleted successfully',
-      });
-      
-      navigate('/dashboard');
-    } catch (error) {
-      console.error('Error deleting project:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to delete project',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsDeleting(false);
+  const getRoleBadgeVariant = (role: string) => {
+    switch(role) {
+      case "product_owner": return "default";
+      case "scrum_master": return "secondary";
+      case "developer": return "outline";
+      default: return "outline";
     }
   };
 
-  const handleRefresh = () => {
-    if (projectId && user) {
-      loadProject();
-    }
-  };
-
-  const handleRemoveUser = async (userId: string) => {
-    if (!projectId || !project) return;
-    
-    try {
-      setIsRemovingUser(true);
-      
-      const updatedMembers = project.members.filter(id => id !== userId);
-      
-      const { error } = await supabase
-        .from('projects')
-        .update({ members: updatedMembers })
-        .eq('id', projectId);
-        
-      if (error) throw error;
-      
-      const filteredUserProfiles = { ...userProfiles };
-      delete filteredUserProfiles[userId];
-      setUserProfiles(filteredUserProfiles);
-      
-      toast({
-        title: "Success",
-        description: "User removed from project",
-      });
-      
-    } catch (error) {
-      console.error('Error removing user:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to remove user from project',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsRemovingUser(false);
-    }
-  };
-
-  const getInitials = (name: string) => {
-    return name.charAt(0).toUpperCase();
-  };
-  
-  const loadProject = async () => {
-    if (!projectId || !user) return;
-    
-    try {
-      setLoading(true);
-      const projectsData = await fetchProjects(user.id);
-      const projectData = projectsData.find(p => p.id === projectId);
-      setProject(projectData || null);
-      
-      const projectSprints = await fetchProjectSprints(projectId);
-      setSprints(projectSprints);
-      
-      updateSprintCategories(projectSprints);
-    } catch (error) {
-      console.error('Error loading project data:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load project data',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-  
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-screen">
-        <div className="animate-spin h-10 w-10 border-4 border-primary border-t-transparent rounded-full"></div>
+      <div className="flex h-screen items-center justify-center">
+        <div className="animate-spin h-12 w-12 border-4 border-primary border-t-transparent rounded-full"></div>
       </div>
     );
   }
-  
-  if (!project) {
-    return (
-      <div className="flex justify-center items-center h-screen">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-destructive">Project not found</h2>
-          <p className="text-muted-foreground mt-2">The project you're looking for doesn't exist or you don't have access to it.</p>
-          <Button onClick={() => navigate('/dashboard')} className="mt-4">Back to Dashboard</Button>
-        </div>
-      </div>
-    );
-  }
-  
+
   return (
-    <div className="container mx-auto p-6">
-      <div className="flex items-center text-muted-foreground mb-2">
-        <Button variant="link" className="p-0 mr-1 h-auto" onClick={() => navigate('/dashboard')}>
-          Projects
-        </Button>
-        <span className="mx-1">›</span>
-        <span>{project.name}</span>
-      </div>
-      
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-3xl font-bold">{project?.name}</h1>
-        <div className="flex items-center space-x-2">
-          <Button variant="outline" onClick={() => navigate('/dashboard')}>
-            <LayoutDashboard className="mr-2 h-4 w-4" />
-            Dashboard
+    <div className="container py-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+        <div>
+          <h1 className="text-3xl font-bold mb-2 flex items-center gap-2">
+            <Sprout className="h-8 w-8" />
+            {project?.name}
+          </h1>
+          <p className="text-muted-foreground">{project?.description}</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={handleInviteUser}>
+            <UserPlus className="mr-2 h-4 w-4" />
+            Invite Member
           </Button>
-          <Button variant="default" onClick={() => setIsCreateSprintOpen(true)} className="bg-[#6B8C6B] hover:bg-[#5a7a5a]">
+          <Button onClick={handleCreateSprint}>
             <Plus className="mr-2 h-4 w-4" />
             Create Sprint
           </Button>
         </div>
       </div>
       
-      {project?.description && (
-        <p className="text-muted-foreground mb-8">{project.description}</p>
+      {activeSprint && (
+        <Card className="mb-6 border-green-600/20 bg-green-50/10">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex justify-between items-center">
+              <div className="flex items-center">
+                <Bell className="mr-2 h-5 w-5 text-green-600" />
+                Active Sprint: {activeSprint.name}
+              </div>
+              <Badge className="bg-green-600">
+                <CalendarDays className="mr-2 h-4 w-4" />
+                {format(new Date(activeSprint.startDate), "MMM d")} - {format(new Date(activeSprint.endDate), "MMM d")}
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardFooter className="pt-2">
+            <Button variant="outline" className="w-full" onClick={() => navigate(`/sprint/${activeSprint.id}`)}>
+              <ExternalLink className="mr-2 h-4 w-4" />
+              View Sprint Details
+            </Button>
+          </CardFooter>
+        </Card>
       )}
       
-      {projectId && project && (
-        <BurndownChart 
-          projectId={projectId}
-          projectName={project.name}
-        />
-      )}
+      <BurndownChart projectId={projectId || ""} projectName={project?.name || ""} />
       
-      <div className="grid md:grid-cols-3 gap-6">
-        <div>
-          <div className="mb-6">
-            {projectId && (
-              <ProductBacklog 
-                projectId={projectId} 
-                onRefresh={handleRefresh} 
-                activeSprint={activeSprint}
-              />
-            )}
+      <Tabs defaultValue="backlog" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="backlog" className="flex items-center">
+            <ClipboardList className="mr-2 h-4 w-4" />
+            Product Backlog
+          </TabsTrigger>
+          {activeSprint && (
+            <TabsTrigger value="sprint-board" className="flex items-center">
+              <Code className="mr-2 h-4 w-4" />
+              Sprint Board
+            </TabsTrigger>
+          )}
+          {sprints.length > 0 && (
+            <TabsTrigger value="sprints" className="flex items-center">
+              <LineChart className="mr-2 h-4 w-4" />
+              All Sprints
+            </TabsTrigger>
+          )}
+          <TabsTrigger value="team" className="flex items-center">
+            <Users className="mr-2 h-4 w-4" />
+            Team Members
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="backlog" className="space-y-4">
+          <ProductBacklog 
+            projectId={projectId || ""} 
+            onRefresh={refreshData}
+            activeSprint={activeSprint}
+          />
+        </TabsContent>
+        {activeSprint && (
+          <TabsContent value="sprint-board">
+            <KanbanBoard sprintId={activeSprint.id} ref={kanbanBoardRef} />
+          </TabsContent>
+        )}
+        <TabsContent value="sprints">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {sprints.map(sprint => (
+              <Card key={sprint.id} className={`cursor-pointer hover:border-primary transition-colors ${
+                sprint.id === activeSprint?.id ? 'border-green-600 bg-green-50/10' : ''
+              }`} onClick={() => navigate(`/sprint/${sprint.id}`)}>
+                <CardHeader>
+                  <CardTitle className="flex justify-between">
+                    <span>{sprint.name}</span>
+                    {sprint.id === activeSprint?.id && (
+                      <Badge variant="default" className="bg-green-600">Active</Badge>
+                    )}
+                  </CardTitle>
+                  <div className="text-sm text-muted-foreground flex items-center">
+                    <CalendarDays className="mr-2 h-4 w-4" />
+                    {format(new Date(sprint.startDate), "MMM d")} - {format(new Date(sprint.endDate), "MMM d")}
+                  </div>
+                </CardHeader>
+                <CardFooter>
+                  <Button variant="outline" className="w-full">
+                    View Sprint
+                  </Button>
+                </CardFooter>
+              </Card>
+            ))}
           </div>
-          
-          <Card className="mb-6">
-            <CardContent className="p-6">
-              <h2 className="text-xl font-semibold mb-4 flex items-center">
-                <Users className="mr-2 h-5 w-5" /> Team Members
-              </h2>
-              
-              <div className="space-y-4 mb-6">
-                {Object.values(userProfiles).map((profile) => (
-                  <div key={profile.id} className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <Avatar className="h-8 w-8 mr-3">
-                        <AvatarFallback>{getInitials(profile.name)}</AvatarFallback>
+        </TabsContent>
+        <TabsContent value="team">
+          <div className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {projectMembers.map(member => (
+                <Card key={member.id}>
+                  <CardHeader>
+                    <div className="flex items-center gap-4">
+                      <Avatar>
+                        <AvatarImage src={member.avatar_url} alt={member.name} />
+                        <AvatarFallback>{member.name.charAt(0)}</AvatarFallback>
                       </Avatar>
-                      <span>{profile.name}</span>
+                      <div>
+                        <CardTitle className="text-lg">{member.name}</CardTitle>
+                        <Badge variant={getRoleBadgeVariant(member.role || "developer")}>
+                          {getRoleLabel(member.role || "developer")}
+                        </Badge>
+                      </div>
                     </div>
-                    {project?.user_id !== profile.id && (
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="text-destructive hover:text-destructive/80"
-                        onClick={() => handleRemoveUser(profile.id)}
-                        disabled={isRemovingUser}
-                      >
-                        <Trash className="h-4 w-4" />
+                  </CardHeader>
+                  <CardFooter>
+                    {/* Only show edit button if current user is in this project */}
+                    {project?.members?.includes(user?.id || "") && (
+                      <Button variant="outline" className="w-full" onClick={() => handleEditMemberRole(member)}>
+                        <UserCog className="mr-2 h-4 w-4" />
+                        Change Role
                       </Button>
                     )}
-                  </div>
-                ))}
-              </div>
-              
-              <Button variant="outline" className="w-full" onClick={() => setIsInviteUserOpen(true)}>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Member
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-        
-        <div className="md:col-span-2">
-          {futureSprints.length > 0 && (
-            <Card className="mb-6">
-              <CardContent className="p-6">
-                <h2 className="text-xl font-semibold mb-2">Future Sprints</h2>
-                <p className="text-muted-foreground mb-6">Upcoming sprints scheduled for the future</p>
-                
-                <SprintList 
-                  sprints={futureSprints} 
-                  projectId={projectId} 
-                  onSprintDeleted={handleSprintDeleted}
-                />
-              </CardContent>
-            </Card>
-          )}
-          
-          <Card className="mb-6">
-            <CardContent className="p-6">
-              <h2 className="text-xl font-semibold mb-2">Current Sprint</h2>
-              <p className="text-muted-foreground mb-6">Active sprint progress and tasks</p>
-              
-              {activeSprint ? (
-                <div>
-                  <Button variant="outline" className="w-full" onClick={() => navigate(`/sprint/${activeSprint.id}`)}>
-                    View Sprint Board
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <div className="text-gray-400 mb-4">
-                    <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                    </svg>
-                  </div>
-                  <p className="text-lg mb-4">No Active Sprint</p>
-                  <p className="text-muted-foreground mb-6">Create a new sprint to start tracking your work</p>
-                  <Button onClick={() => setIsCreateSprintOpen(true)} className="bg-[#6B8C6B] hover:bg-[#5a7a5a]">
-                    <Plus className="mr-2 h-4 w-4" />
-                    Create Sprint
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-          
-          <div className="grid md:grid-cols-2 gap-6 mb-6">
-            <Card>
-              <CardContent className="p-6">
-                <h2 className="text-xl font-semibold mb-4 flex items-center">
-                  <BarChart className="mr-2 h-5 w-5" /> Project Stats
-                </h2>
-                
-                <div className="space-y-4">
-                  <div className="flex justify-between">
-                    <span>Total Sprints</span>
-                    <span className="font-semibold">{projectStats.totalSprints}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Total Tasks</span>
-                    <span className="font-semibold">{projectStats.totalTasks}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Completion Rate</span>
-                    <span className="font-semibold">{projectStats.completionRate}%</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Team Size</span>
-                    <span className="font-semibold">{projectStats.teamSize}</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <div className="flex flex-col">
-              <Card className="flex-1">
-                <CardContent className="p-6 flex flex-col h-full">
-                  <h2 className="text-xl font-semibold mb-4 flex items-center">
-                    <Trash className="mr-2 h-5 w-5" /> Project Actions
-                  </h2>
-                  
-                  <p className="text-muted-foreground mb-6 flex-1">
-                    Manage your project settings and actions
-                  </p>
-                  
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="destructive" className="w-full mt-auto bg-red-600 hover:bg-red-700 text-white">
-                        <Trash className="mr-2 h-4 w-4" />
-                        Delete Project
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          This action cannot be undone. This will permanently delete the project
-                          "{project.name}" and all its associated sprints and tasks.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={handleDeleteProject}
-                          className="bg-red-600 hover:bg-red-700"
-                          disabled={isDeleting}
-                        >
-                          {isDeleting ? 'Deleting...' : 'Delete'}
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </CardContent>
-              </Card>
+                  </CardFooter>
+                </Card>
+              ))}
             </div>
           </div>
-          
-          <Card className="mb-6">
-            <CardContent className="p-6">
-              <h2 className="text-xl font-semibold mb-2">Past Sprints</h2>
-              <p className="text-muted-foreground mb-4">View completed sprints and their results</p>
-              
-              {pastSprints.length > 0 ? (
-                <SprintList 
-                  sprints={pastSprints} 
-                  projectId={projectId} 
-                  onSprintDeleted={handleSprintDeleted}
-                />
-              ) : (
-                <div className="text-center py-8">
-                  <p className="text-muted-foreground">No past sprints available</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+        </TabsContent>
+      </Tabs>
       
-      {user && projectId && (
-        <>
-          <CreateSprintDialog 
-            open={isCreateSprintOpen} 
-            onClose={() => setIsCreateSprintOpen(false)} 
-            onCreateSprint={handleSprintCreated}
-            projectId={projectId}
-            hasActiveSprint={activeSprint !== null}
-            activeSprintId={activeSprint?.id}
-            existingSprints={sprints}
-          />
-          
-          <InviteUserDialog
-            open={isInviteUserOpen}
-            onClose={() => setIsInviteUserOpen(false)}
-            projectId={projectId}
-            onSuccess={handleRefresh}
-          />
-        </>
+      {/* Dialogs */}
+      <CreateSprintDialog
+        open={showCreateSprintDialog}
+        onClose={() => setShowCreateSprintDialog(false)}
+        onCreateSprint={handleSprintCreated}
+        projectId={projectId || ""}
+        hasActiveSprint={!!activeSprint}
+        activeSprintId={activeSprint?.id}
+        existingSprints={sprints}
+      />
+      
+      <InviteUserDialog
+        open={showInviteDialog}
+        onClose={() => setShowInviteDialog(false)}
+        projectId={projectId || ""}
+        onSuccess={refreshData}
+      />
+      
+      {editMember && (
+        <EditMemberRoleDialog
+          open={!!editMember}
+          onClose={() => setEditMember(null)}
+          projectId={projectId || ""}
+          member={editMember}
+          onSuccess={refreshData}
+        />
       )}
     </div>
   );
