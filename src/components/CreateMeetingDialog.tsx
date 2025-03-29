@@ -124,12 +124,13 @@ const CreateMeetingDialog = ({
                   {date ? format(date, "PPP") : "Select date"}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
+              <PopoverContent className="w-auto p-0 bg-background" align="start">
                 <Calendar
                   mode="single"
                   selected={date}
                   onSelect={setDate}
                   initialFocus
+                  className="bg-background pointer-events-auto"
                 />
               </PopoverContent>
             </Popover>
