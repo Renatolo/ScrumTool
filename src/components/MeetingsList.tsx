@@ -99,6 +99,11 @@ const MeetingsList = ({ projectId }: MeetingsListProps) => {
     setRefreshTrigger(prev => prev + 1);
   };
 
+  // Separate meetings into upcoming and past
+  const now = new Date();
+  const upcomingMeetings = meetings.filter(meeting => new Date(meeting.date) >= now);
+  const pastMeetings = meetings.filter(meeting => new Date(meeting.date) < now);
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-[200px]">
@@ -130,36 +135,92 @@ const MeetingsList = ({ projectId }: MeetingsListProps) => {
           </div>
         </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {meetings.map((meeting) => (
-            <Card key={meeting.id}>
-              <CardHeader>
-                <CardTitle className="text-xl">{meeting.name}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-sm text-muted-foreground flex items-center">
-                  <Calendar className="mr-2 h-4 w-4" />
-                  {format(new Date(meeting.date), "PPP 'at' p")}
-                </div>
-              </CardContent>
-              <CardFooter className="flex justify-end gap-2">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => handleEditMeeting(meeting)}
-                >
-                  <Edit className="h-4 w-4" />
-                </Button>
-                <Button 
-                  variant="destructive" 
-                  size="sm" 
-                  onClick={() => handleDeleteMeeting(meeting.id)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </CardFooter>
-            </Card>
-          ))}
+        <div className="space-y-8">
+          {/* Upcoming Meetings */}
+          <div className="border rounded-lg p-4 bg-green-50/20">
+            <h3 className="text-lg font-medium mb-4 text-green-800">Upcoming Meetings</h3>
+            {upcomingMeetings.length > 0 ? (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {upcomingMeetings.map((meeting) => (
+                  <Card key={meeting.id}>
+                    <CardHeader>
+                      <CardTitle className="text-xl">{meeting.name}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-sm text-muted-foreground flex items-center">
+                        <Calendar className="mr-2 h-4 w-4" />
+                        {format(new Date(meeting.date), "PPP 'at' p")}
+                      </div>
+                    </CardContent>
+                    <CardFooter className="flex justify-end gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => handleEditMeeting(meeting)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="destructive" 
+                        size="sm" 
+                        onClick={() => handleDeleteMeeting(meeting.id)}
+                        className="bg-red-600 hover:bg-red-700"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-5 bg-muted/20 rounded-lg">
+                <p className="text-muted-foreground">No upcoming meetings</p>
+              </div>
+            )}
+          </div>
+          
+          {/* Past Meetings */}
+          <div className="border rounded-lg p-4 bg-red-50/10">
+            <h3 className="text-lg font-medium mb-4 text-red-800">Past Meetings</h3>
+            {pastMeetings.length > 0 ? (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {pastMeetings.map((meeting) => (
+                  <Card key={meeting.id} className="opacity-90">
+                    <CardHeader>
+                      <CardTitle className="text-xl">{meeting.name}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-sm text-muted-foreground flex items-center">
+                        <Calendar className="mr-2 h-4 w-4" />
+                        {format(new Date(meeting.date), "PPP 'at' p")}
+                      </div>
+                    </CardContent>
+                    <CardFooter className="flex justify-end gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => handleEditMeeting(meeting)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="destructive" 
+                        size="sm" 
+                        onClick={() => handleDeleteMeeting(meeting.id)}
+                        className="bg-red-600 hover:bg-red-700"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-5 bg-muted/20 rounded-lg">
+                <p className="text-muted-foreground">No past meetings</p>
+              </div>
+            )}
+          </div>
         </div>
       )}
       
