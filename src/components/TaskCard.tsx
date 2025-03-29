@@ -50,13 +50,13 @@ const TaskCard = ({ task, onEdit, onDelete, onMove, showMoveButton = false, isDr
   };
 
   return (
-    <Card className={`mb-2 ${isDraggable ? 'cursor-grab active:cursor-grabbing' : ''} hover:shadow-md transition-shadow w-full overflow-hidden`}>
-      <CardHeader className="pb-2 px-3 pt-3">
+    <Card className={`mb-2 ${isDraggable ? 'cursor-grab active:cursor-grabbing' : ''} hover:shadow-md transition-shadow w-full max-w-[250px] overflow-hidden`}>
+      <CardHeader className="pb-0 px-3 pt-2">
         <div className="flex justify-between items-start">
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <CardTitle className="text-sm truncate max-w-[150px] md:max-w-[180px]">{task.title}</CardTitle>
+                <CardTitle className="text-sm truncate max-w-[130px] md:max-w-[140px]">{task.title}</CardTitle>
               </TooltipTrigger>
               <TooltipContent>
                 <p>{task.title}</p>
@@ -73,7 +73,7 @@ const TaskCard = ({ task, onEdit, onDelete, onMove, showMoveButton = false, isDr
           Points: {task.points}
         </CardDescription>
       </CardHeader>
-      <CardContent className="pb-1 px-3">
+      <CardContent className="pb-0 px-3 pt-1">
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -85,35 +85,35 @@ const TaskCard = ({ task, onEdit, onDelete, onMove, showMoveButton = false, isDr
           </Tooltip>
         </TooltipProvider>
       </CardContent>
-      <CardFooter className="flex justify-end pt-1 pb-2 px-2 gap-1">
+      <CardFooter className="flex justify-end pt-0 pb-1 px-2 gap-1">
         <Button
           size="sm"
           variant="ghost"
           onClick={handleEditClick}
-          className="z-10 h-7 w-7 p-0"
+          className="z-10 h-6 w-6 p-0"
           type="button"
         >
-          <Edit size={14} />
+          <Edit size={12} />
         </Button>
         {showMoveButton && onMove && (
           <Button
             size="sm"
             variant="ghost"
             onClick={handleMoveClick}
-            className="text-blue-500 hover:text-blue-700 z-10 h-7 w-7 p-0"
+            className="text-blue-500 hover:text-blue-700 z-10 h-6 w-6 p-0"
             type="button"
           >
-            <ArrowRight size={14} />
+            <ArrowRight size={12} />
           </Button>
         )}
         <Button
           size="sm"
           variant="ghost"
           onClick={handleDeleteClick}
-          className="text-red-500 hover:text-red-700 z-10 h-7 w-7 p-0"
+          className="text-red-500 hover:text-red-700 z-10 h-6 w-6 p-0"
           type="button"
         >
-          <Trash2 size={14} />
+          <Trash2 size={12} />
         </Button>
       </CardFooter>
     </Card>

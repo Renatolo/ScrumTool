@@ -1,4 +1,3 @@
-
 import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -56,7 +55,7 @@ const SprintBoard = () => {
     };
 
     loadSprint();
-  }, [sprintId, user]);
+  }, [sprintId, user, toast]);
 
   const handleDragEnd = async (event: any) => {
     setActiveTask(null);
@@ -154,8 +153,8 @@ const SprintBoard = () => {
         
         <DragOverlay>
           {activeTask && (
-            <div className="p-4 bg-white border rounded-md shadow-lg max-w-[300px]">
-              <h4 className="font-medium">{activeTask.title}</h4>
+            <div className="p-3 bg-white border rounded-md shadow-lg max-w-[220px]">
+              <h4 className="font-medium text-sm">{activeTask.title}</h4>
             </div>
           )}
         </DragOverlay>

@@ -1,14 +1,13 @@
 
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Calendar, ChevronRight, Trash2, Clock, ArrowUp, History } from 'lucide-react';
-import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
+import { format } from 'date-fns';
 import { Sprint } from '@/types/sprint';
 import { deleteSprint } from '@/lib/supabase/sprints';
 import { useToast } from '@/hooks/use-toast';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import {
   AlertDialog,
@@ -21,6 +20,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { 
+  Calendar, 
+  ChevronRight, 
+  Trash2,
+  ArrowUp, 
+  History,
+  Clock
+} from 'lucide-react';
 
 interface SprintListProps {
   sprints: Sprint[];
@@ -29,19 +36,18 @@ interface SprintListProps {
   onSprintDeleted?: () => void;
 }
 
-interface GroupedSprints {
-  current: Sprint[];
-  future: Sprint[];
-  past: Sprint[];
-}
-
 const SprintList = ({ sprints, projectId, title, onSprintDeleted }: SprintListProps) => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [isDeleting, setIsDeleting] = useState<Record<string, boolean>>({});
 
-  const groupedSprints = sprints.reduce((acc: GroupedSprints, sprint) => {
+  // Group sprints into categories
+  const groupedSprints = sprints.reduce((acc: { 
+      current: Sprint[]; 
+      future: Sprint[]; 
+      past: Sprint[]; 
+    }, sprint) => {
     const startDate = new Date(sprint.startDate);
     const endDate = new Date(sprint.endDate);
     const today = new Date();
@@ -59,17 +65,11 @@ const SprintList = ({ sprints, projectId, title, onSprintDeleted }: SprintListPr
     return acc;
   }, { current: [], future: [], past: [] });
 
+  // Sort sprints within each category
   const sortedSprints = {
     current: groupedSprints.current.sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime()),
     future: groupedSprints.future.sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime()),
     past: groupedSprints.past.sort((a, b) => new Date(b.endDate).getTime() - new Date(a.endDate).getTime())
-  };
-
-  const toggleExpand = (sprintId: string) => {
-    setExpanded(prev => ({
-      ...prev,
-      [sprintId]: !prev[sprintId]
-    }));
   };
 
   const handleNavigateToSprint = (sprintId: string) => {
@@ -117,37 +117,28 @@ const SprintList = ({ sprints, projectId, title, onSprintDeleted }: SprintListPr
     }
   };
 
-  // Removed the first declaration of renderSprintCategory
-
-  const SprintCard = ({ 
-    sprint, 
-    handleNavigateToSprint, 
-    handleDeleteSprint, 
-    isDeleting 
-  }: { 
-    sprint: Sprint, 
-    handleNavigateToSprint: (id: string) => void, 
-    handleDeleteSprint: (id: string) => void,
-    isDeleting: Record<string, boolean>
-  }) => (
-    <Card key={sprint.id} className={`hover:shadow-md transition-shadow ${
-      sortedSprints.current.includes(sprint) ? 'border-green-600/40 bg-green-50/10' : ''
-    }`}>
-      <CardHeader className="pb-2">
-        <div className="flex justify-between items-center">
-          <CardTitle className="text-lg">{sprint.name}</CardTitle>
+  // Sprint Card Component
+  const SprintCard = ({ sprint }: { sprint: Sprint }) => (
+    <Card 
+      key={sprint.id} 
+      className={`hover:shadow-md transition-shadow ${
+        sortedSprints.current.includes(sprint) ? 'border-green-600/40 bg-green-50/10' : ''
+      }`}
+    >
+      <div className="p-4">
+        <div className="flex justify-between items-center mb-2">
+          <h3 className="text-lg font-semibold">{sprint.name}</h3>
           {getStatusBadge(sprint)}
         </div>
-      </CardHeader>
-      <CardContent>
-        <div className="flex items-center text-sm text-muted-foreground mb-4">
+        
+        <div className="flex items-center text-sm text-muted-foreground mb-3">
           <Calendar className="h-4 w-4 mr-2" />
           <span>
             {format(new Date(sprint.startDate), "MMM d")} - {format(new Date(sprint.endDate), "MMM d, yyyy")}
           </span>
         </div>
         
-        <div className="flex gap-2 mt-2">
+        <div className="flex gap-2">
           <Button 
             variant="default" 
             className="flex-1"
@@ -183,126 +174,74 @@ const SprintList = ({ sprints, projectId, title, onSprintDeleted }: SprintListPr
             </AlertDialogContent>
           </AlertDialog>
         </div>
-      </CardContent>
+      </div>
     </Card>
   );
 
-  const renderSprintCategory = (
-    categoryTitle: string,
-    categoryIcon: React.ReactNode,
-    categoryItems: Sprint[],
-    variant: string = 'default',
-    emptyMessage: string = 'No sprints available'
-  ) => {
-    return (
-      <div className="space-y-4 mb-8">
-        <div className="flex items-center gap-2 border-b pb-2">
-          <h3 className="text-lg font-medium">{categoryTitle}</h3>
-          {categoryIcon}
-          <Badge variant={variant as any}>{categoryItems.length}</Badge>
-        </div>
-        {categoryItems.length > 0 ? (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {categoryItems.map(sprint => (
-              <SprintCard 
-                key={sprint.id} 
-                sprint={sprint} 
-                handleNavigateToSprint={handleNavigateToSprint}
-                handleDeleteSprint={handleDeleteSprint}
-                isDeleting={isDeleting}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-8 bg-muted/20 rounded-lg">
-            <p className="text-muted-foreground">{emptyMessage}</p>
-          </div>
-        )}
+  // Category Section Component
+  const SprintCategorySection = ({ 
+    title, 
+    icon, 
+    sprints, 
+    emptyMessage, 
+    badgeColor = "bg-blue-600"
+  }: { 
+    title: string; 
+    icon: JSX.Element; 
+    sprints: Sprint[];
+    emptyMessage: string;
+    badgeColor?: string;
+  }) => (
+    <div className="border rounded-lg p-6 bg-card mb-6 shadow-sm">
+      <div className="flex items-center gap-2 mb-4">
+        {icon}
+        <h2 className="text-xl font-semibold">{title}</h2>
+        <Badge className={badgeColor}>{sprints.length}</Badge>
       </div>
-    );
-  };
+      
+      <Separator className="mb-4" />
+      
+      {sprints.length > 0 ? (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {sprints.map(sprint => (
+            <SprintCard key={sprint.id} sprint={sprint} />
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-8 bg-muted/20 rounded-lg">
+          <p className="text-muted-foreground">{emptyMessage}</p>
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div className="space-y-6">
       {title && <h2 className="text-xl font-medium mb-6">{title}</h2>}
       
-      <div className="border rounded-lg p-6 bg-card">
-        <div className="flex items-center gap-2 mb-4">
-          <Calendar className="h-5 w-5 text-green-600" />
-          <h2 className="text-xl font-semibold">Current Sprint</h2>
-          <Badge className="bg-green-600">Active</Badge>
-        </div>
-        <Separator className="mb-4" />
-        {sortedSprints.current.length > 0 ? (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {sortedSprints.current.map(sprint => (
-              <SprintCard 
-                key={sprint.id} 
-                sprint={sprint} 
-                handleNavigateToSprint={handleNavigateToSprint}
-                handleDeleteSprint={handleDeleteSprint}
-                isDeleting={isDeleting}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-8 bg-muted/20 rounded-lg">
-            <p className="text-muted-foreground">No active sprints at the moment</p>
-          </div>
-        )}
-      </div>
+      <SprintCategorySection
+        title="Current Sprint"
+        icon={<Clock className="h-5 w-5 text-green-600" />}
+        sprints={sortedSprints.current}
+        emptyMessage="No active sprints at the moment"
+        badgeColor="bg-green-600"
+      />
       
-      <div className="border rounded-lg p-6 bg-card">
-        <div className="flex items-center gap-2 mb-4">
-          <ArrowUp className="h-5 w-5 text-blue-500" />
-          <h2 className="text-xl font-semibold">Upcoming Sprints</h2>
-          <Badge variant="secondary">{sortedSprints.future.length}</Badge>
-        </div>
-        <Separator className="mb-4" />
-        {sortedSprints.future.length > 0 ? (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {sortedSprints.future.map(sprint => (
-              <SprintCard 
-                key={sprint.id} 
-                sprint={sprint} 
-                handleNavigateToSprint={handleNavigateToSprint}
-                handleDeleteSprint={handleDeleteSprint}
-                isDeleting={isDeleting}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-8 bg-muted/20 rounded-lg">
-            <p className="text-muted-foreground">No upcoming sprints scheduled</p>
-          </div>
-        )}
-      </div>
+      <SprintCategorySection
+        title="Upcoming Sprints"
+        icon={<ArrowUp className="h-5 w-5 text-blue-500" />}
+        sprints={sortedSprints.future}
+        emptyMessage="No upcoming sprints scheduled"
+        badgeColor="bg-blue-500"
+      />
       
-      <div className="border rounded-lg p-6 bg-card">
-        <div className="flex items-center gap-2 mb-4">
-          <History className="h-5 w-5 text-gray-500" />
-          <h2 className="text-xl font-semibold">Past Sprints</h2>
-          <Badge variant="outline">{sortedSprints.past.length}</Badge>
-        </div>
-        <Separator className="mb-4" />
-        {sortedSprints.past.length > 0 ? (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {sortedSprints.past.map(sprint => (
-              <SprintCard 
-                key={sprint.id} 
-                sprint={sprint} 
-                handleNavigateToSprint={handleNavigateToSprint}
-                handleDeleteSprint={handleDeleteSprint}
-                isDeleting={isDeleting}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-8 bg-muted/20 rounded-lg">
-            <p className="text-muted-foreground">No past sprints</p>
-          </div>
-        )}
-      </div>
+      <SprintCategorySection
+        title="Past Sprints"
+        icon={<History className="h-5 w-5 text-gray-500" />}
+        sprints={sortedSprints.past}
+        emptyMessage="No past sprints"
+        badgeColor="bg-gray-500"
+      />
     </div>
   );
 };
