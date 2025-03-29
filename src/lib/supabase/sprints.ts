@@ -256,3 +256,58 @@ export async function fetchSprintById(sprintId: string): Promise<Sprint | null> 
     return null;
   }
 }
+
+/**
+ * Gets the currently active sprint for a project (if any)
+ * An active sprint is defined as one where the current date falls between its start and end dates
+ */
+export async function getActiveSprintForProject(projectId: string): Promise<Sprint | null> {
+  try {
+    console.log('Finding active sprint for project:', projectId);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const { data, error } = await supabase
+      .from('sprints')
+      .select('*')
+      .eq('project_id', projectId);
+    
+    if (error) {
+      console.error('Error fetching sprints for active sprint check:', error);
+      return null;
+    }
+    
+    if (!data || data.length === 0) {
+      console.log('No sprints found for project');
+      return null;
+    }
+    
+    // Find a sprint where today falls between start_date and end_date
+    const activeSprint = data.find(sprint => {
+      const startDate = new Date(sprint.start_date);
+      const endDate = new Date(sprint.end_date);
+      startDate.setHours(0, 0, 0, 0);
+      endDate.setHours(23, 59, 59, 999); // Include the full end date
+      
+      return today >= startDate && today <= endDate;
+    });
+    
+    if (activeSprint) {
+      console.log('Found active sprint:', activeSprint.id);
+      return {
+        id: activeSprint.id,
+        name: activeSprint.name,
+        startDate: activeSprint.start_date,
+        endDate: activeSprint.end_date,
+        tasks: [],
+        projectId: activeSprint.project_id
+      } as Sprint;
+    }
+    
+    console.log('No active sprint found for project');
+    return null;
+  } catch (error) {
+    console.error('Error in getActiveSprintForProject:', error);
+    return null;
+  }
+}
