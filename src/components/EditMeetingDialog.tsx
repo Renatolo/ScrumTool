@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -25,6 +26,7 @@ interface Meeting {
   name: string;
   date: string;
   project_id: string;
+  description?: string;
 }
 
 interface EditMeetingDialogProps {
@@ -43,6 +45,7 @@ const EditMeetingDialog = ({
   const { user } = useAuth();
   const { toast } = useToast();
   const [name, setName] = useState(meeting.name);
+  const [description, setDescription] = useState(meeting.description || "");
   const [date, setDate] = useState<Date>(new Date(meeting.date));
   const [time, setTime] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -57,13 +60,14 @@ const EditMeetingDialog = ({
     setTime(`${hours}:${minutes}`);
     
     setName(meeting.name);
+    setDescription(meeting.description || "");
   }, [meeting]);
 
   const handleUpdate = async () => {
     if (!user || !name.trim()) {
       toast({
         title: "Error",
-        description: "Please fill in all fields",
+        description: "Please fill in all required fields",
         variant: "destructive",
       });
       return;
@@ -81,6 +85,7 @@ const EditMeetingDialog = ({
         .from("meetings")
         .update({
           name: name.trim(),
+          description: description.trim() || null,
           date: meetingDateTime.toISOString(),
           updated_at: new Date().toISOString(),
         })
@@ -118,7 +123,7 @@ const EditMeetingDialog = ({
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid gap-2">
-            <Label htmlFor="name">Meeting Name</Label>
+            <Label htmlFor="name">Meeting Name*</Label>
             <Input
               id="name"
               placeholder="Sprint Planning"
@@ -127,7 +132,17 @@ const EditMeetingDialog = ({
             />
           </div>
           <div className="grid gap-2">
-            <Label>Date</Label>
+            <Label htmlFor="description">Description (optional)</Label>
+            <Textarea
+              id="description"
+              placeholder="Meeting agenda and notes"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="min-h-[80px]"
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label>Date*</Label>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
@@ -150,7 +165,7 @@ const EditMeetingDialog = ({
             </Popover>
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="time">Time</Label>
+            <Label htmlFor="time">Time*</Label>
             <Input
               id="time"
               type="time"

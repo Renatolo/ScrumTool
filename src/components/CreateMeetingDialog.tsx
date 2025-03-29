@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -36,6 +37,7 @@ const CreateMeetingDialog = ({
   const { user } = useAuth();
   const { toast } = useToast();
   const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
   const [date, setDate] = useState<Date | undefined>(undefined);
   const [time, setTime] = useState("12:00");
   const [submitting, setSubmitting] = useState(false);
@@ -44,7 +46,7 @@ const CreateMeetingDialog = ({
     if (!user || !date || !name.trim()) {
       toast({
         title: "Error",
-        description: "Please fill in all fields",
+        description: "Please fill in all required fields",
         variant: "destructive",
       });
       return;
@@ -60,6 +62,7 @@ const CreateMeetingDialog = ({
       
       const { error } = await supabase.from("meetings").insert({
         name: name.trim(),
+        description: description.trim() || null,
         date: meetingDateTime.toISOString(),
         project_id: projectId,
         created_by: user.id,
@@ -74,6 +77,7 @@ const CreateMeetingDialog = ({
       
       // Reset form and close dialog
       setName("");
+      setDescription("");
       setDate(undefined);
       setTime("12:00");
       onSuccess();
@@ -101,7 +105,7 @@ const CreateMeetingDialog = ({
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid gap-2">
-            <Label htmlFor="name">Meeting Name</Label>
+            <Label htmlFor="name">Meeting Name*</Label>
             <Input
               id="name"
               placeholder="Sprint Planning"
@@ -110,7 +114,17 @@ const CreateMeetingDialog = ({
             />
           </div>
           <div className="grid gap-2">
-            <Label>Date</Label>
+            <Label htmlFor="description">Description (optional)</Label>
+            <Textarea
+              id="description"
+              placeholder="Meeting agenda and notes"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="min-h-[80px]"
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label>Date*</Label>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
@@ -136,7 +150,7 @@ const CreateMeetingDialog = ({
             </Popover>
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="time">Time</Label>
+            <Label htmlFor="time">Time*</Label>
             <Input
               id="time"
               type="time"

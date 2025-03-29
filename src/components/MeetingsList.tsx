@@ -17,6 +17,7 @@ interface Meeting {
   project_id: string;
   created_at: string;
   created_by: string;
+  description?: string;
 }
 
 interface MeetingsListProps {
@@ -101,8 +102,13 @@ const MeetingsList = ({ projectId }: MeetingsListProps) => {
 
   // Separate meetings into upcoming and past
   const now = new Date();
-  const upcomingMeetings = meetings.filter(meeting => new Date(meeting.date) >= now);
-  const pastMeetings = meetings.filter(meeting => new Date(meeting.date) < now);
+  const upcomingMeetings = meetings
+    .filter(meeting => new Date(meeting.date) >= now)
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()); // Earliest first
+    
+  const pastMeetings = meetings
+    .filter(meeting => new Date(meeting.date) < now)
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()); // Most recent first
 
   if (loading) {
     return (
@@ -147,16 +153,22 @@ const MeetingsList = ({ projectId }: MeetingsListProps) => {
                       <CardTitle className="text-xl">{meeting.name}</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-sm text-muted-foreground flex items-center">
+                      <div className="text-sm text-muted-foreground flex items-center mb-2">
                         <Calendar className="mr-2 h-4 w-4" />
-                        {format(new Date(meeting.date), "PPP 'at' p")}
+                        {format(new Date(meeting.date), "EEEE, PPP 'at' p")}
                       </div>
+                      {meeting.description && (
+                        <div className="mt-2 text-sm">
+                          {meeting.description}
+                        </div>
+                      )}
                     </CardContent>
                     <CardFooter className="flex justify-end gap-2">
                       <Button 
                         variant="outline" 
                         size="sm" 
                         onClick={() => handleEditMeeting(meeting)}
+                        className="bg-blue-100 hover:bg-blue-200"
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
@@ -164,7 +176,7 @@ const MeetingsList = ({ projectId }: MeetingsListProps) => {
                         variant="destructive" 
                         size="sm" 
                         onClick={() => handleDeleteMeeting(meeting.id)}
-                        className="bg-red-600 hover:bg-red-700"
+                        className="bg-red-400 hover:bg-red-500"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -190,16 +202,22 @@ const MeetingsList = ({ projectId }: MeetingsListProps) => {
                       <CardTitle className="text-xl">{meeting.name}</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-sm text-muted-foreground flex items-center">
+                      <div className="text-sm text-muted-foreground flex items-center mb-2">
                         <Calendar className="mr-2 h-4 w-4" />
-                        {format(new Date(meeting.date), "PPP 'at' p")}
+                        {format(new Date(meeting.date), "EEEE, PPP 'at' p")}
                       </div>
+                      {meeting.description && (
+                        <div className="mt-2 text-sm">
+                          {meeting.description}
+                        </div>
+                      )}
                     </CardContent>
                     <CardFooter className="flex justify-end gap-2">
                       <Button 
                         variant="outline" 
                         size="sm" 
                         onClick={() => handleEditMeeting(meeting)}
+                        className="bg-blue-100 hover:bg-blue-200"
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
@@ -207,7 +225,7 @@ const MeetingsList = ({ projectId }: MeetingsListProps) => {
                         variant="destructive" 
                         size="sm" 
                         onClick={() => handleDeleteMeeting(meeting.id)}
-                        className="bg-red-600 hover:bg-red-700"
+                        className="bg-red-400 hover:bg-red-500"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
