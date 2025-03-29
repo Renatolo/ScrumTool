@@ -147,14 +147,14 @@ const SprintBoard = () => {
       onDragEnd={handleDragEnd}
       onDragStart={handleDragStart}
     >
-      <div className="container mx-auto p-4 max-w-full overflow-hidden">
-        <div className="overflow-x-auto pb-4">
+      <div className="container mx-auto p-4 max-w-full">
+        <div className="overflow-x-auto pb-6">
           {sprintId && <KanbanBoard sprintId={sprintId} />}
         </div>
         
         <DragOverlay>
           {activeTask && (
-            <div className="p-4 bg-white border rounded-md shadow-lg">
+            <div className="p-4 bg-white border rounded-md shadow-lg max-w-[300px]">
               <h4 className="font-medium">{activeTask.title}</h4>
             </div>
           )}

@@ -43,7 +43,7 @@ const SortableTaskCard = ({ task, onEdit, onDelete }: { task: Task; onEdit: (tas
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    width: '100%', // Ensure the card takes full width of container
+    width: '100%',
   };
 
   return (

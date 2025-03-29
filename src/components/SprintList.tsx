@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import { Sprint } from '@/types/sprint';
 import { deleteSprint } from '@/lib/supabase/sprints';
 import { useToast } from '@/hooks/use-toast';
+import { Separator } from '@/components/ui/separator';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -222,32 +223,86 @@ const SprintList = ({ sprints, projectId, title, onSprintDeleted }: SprintListPr
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {title && <h2 className="text-xl font-medium mb-6">{title}</h2>}
       
-      {renderSprintCategory(
-        'Current Sprint', 
-        <Badge className="bg-green-600">Active</Badge>, 
-        sortedSprints.current, 
-        'default',
-        'No active sprints at the moment'
-      )}
+      <div className="border rounded-lg p-6 bg-card">
+        <div className="flex items-center gap-2 mb-4">
+          <Calendar className="h-5 w-5 text-green-600" />
+          <h2 className="text-xl font-semibold">Current Sprint</h2>
+          <Badge className="bg-green-600">Active</Badge>
+        </div>
+        <Separator className="mb-4" />
+        {sortedSprints.current.length > 0 ? (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {sortedSprints.current.map(sprint => (
+              <SprintCard 
+                key={sprint.id} 
+                sprint={sprint} 
+                handleNavigateToSprint={handleNavigateToSprint}
+                handleDeleteSprint={handleDeleteSprint}
+                isDeleting={isDeleting}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8 bg-muted/20 rounded-lg">
+            <p className="text-muted-foreground">No active sprints at the moment</p>
+          </div>
+        )}
+      </div>
       
-      {renderSprintCategory(
-        'Upcoming Sprints', 
-        <ArrowUp className="h-4 w-4 text-blue-500" />, 
-        sortedSprints.future, 
-        'secondary',
-        'No upcoming sprints scheduled'
-      )}
+      <div className="border rounded-lg p-6 bg-card">
+        <div className="flex items-center gap-2 mb-4">
+          <ArrowUp className="h-5 w-5 text-blue-500" />
+          <h2 className="text-xl font-semibold">Upcoming Sprints</h2>
+          <Badge variant="secondary">{sortedSprints.future.length}</Badge>
+        </div>
+        <Separator className="mb-4" />
+        {sortedSprints.future.length > 0 ? (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {sortedSprints.future.map(sprint => (
+              <SprintCard 
+                key={sprint.id} 
+                sprint={sprint} 
+                handleNavigateToSprint={handleNavigateToSprint}
+                handleDeleteSprint={handleDeleteSprint}
+                isDeleting={isDeleting}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8 bg-muted/20 rounded-lg">
+            <p className="text-muted-foreground">No upcoming sprints scheduled</p>
+          </div>
+        )}
+      </div>
       
-      {renderSprintCategory(
-        'Past Sprints', 
-        <History className="h-4 w-4 text-gray-500" />, 
-        sortedSprints.past, 
-        'outline',
-        'No past sprints'
-      )}
+      <div className="border rounded-lg p-6 bg-card">
+        <div className="flex items-center gap-2 mb-4">
+          <History className="h-5 w-5 text-gray-500" />
+          <h2 className="text-xl font-semibold">Past Sprints</h2>
+          <Badge variant="outline">{sortedSprints.past.length}</Badge>
+        </div>
+        <Separator className="mb-4" />
+        {sortedSprints.past.length > 0 ? (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {sortedSprints.past.map(sprint => (
+              <SprintCard 
+                key={sprint.id} 
+                sprint={sprint} 
+                handleNavigateToSprint={handleNavigateToSprint}
+                handleDeleteSprint={handleDeleteSprint}
+                isDeleting={isDeleting}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8 bg-muted/20 rounded-lg">
+            <p className="text-muted-foreground">No past sprints</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

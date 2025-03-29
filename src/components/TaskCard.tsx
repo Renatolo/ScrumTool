@@ -30,33 +30,33 @@ const statusColors = {
 
 const TaskCard = ({ task, onEdit, onDelete, onMove, showMoveButton = false, isDraggable = false }: TaskCardProps) => {
   const handleEditClick = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent drag when clicking edit button
-    e.preventDefault(); // Prevent drag when clicking edit button
+    e.stopPropagation();
+    e.preventDefault();
     onEdit(task);
   };
 
   const handleDeleteClick = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent drag when clicking delete button
-    e.preventDefault(); // Prevent drag when clicking delete button
+    e.stopPropagation();
+    e.preventDefault();
     onDelete(task.id);
   };
 
   const handleMoveClick = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent drag when clicking move button
-    e.preventDefault(); // Prevent drag when clicking move button
+    e.stopPropagation();
+    e.preventDefault();
     if (onMove) {
       onMove(task);
     }
   };
 
   return (
-    <Card className={`mb-2 ${isDraggable ? 'cursor-grab active:cursor-grabbing' : ''} hover:shadow-md transition-shadow w-full`}>
+    <Card className={`mb-2 ${isDraggable ? 'cursor-grab active:cursor-grabbing' : ''} hover:shadow-md transition-shadow w-full overflow-hidden`}>
       <CardHeader className="pb-2 px-3 pt-3">
         <div className="flex justify-between items-start">
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <CardTitle className="text-sm truncate max-w-[150px] md:max-w-[200px]">{task.title}</CardTitle>
+                <CardTitle className="text-sm truncate max-w-[150px] md:max-w-[180px]">{task.title}</CardTitle>
               </TooltipTrigger>
               <TooltipContent>
                 <p>{task.title}</p>
