@@ -24,7 +24,8 @@ import {
   UserCog,
   UserPlus,
   LayoutDashboard,
-  ArrowLeft
+  ArrowLeft,
+  Video
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/lib/supabase/client";
@@ -35,6 +36,7 @@ import KanbanBoard from "@/components/KanbanBoard";
 import BurndownChart from "@/components/BurndownChart";
 import InviteUserDialog from "@/components/InviteUserDialog";
 import EditMemberRoleDialog from "@/components/EditMemberRoleDialog";
+import MeetingsList from "@/components/MeetingsList";
 
 const ProjectPage = () => {
   const { projectId } = useParams();
@@ -249,6 +251,10 @@ const ProjectPage = () => {
             <Users className="mr-2 h-4 w-4" />
             Team Members
           </TabsTrigger>
+          <TabsTrigger value="meetings" className="flex items-center">
+            <Video className="mr-2 h-4 w-4" />
+            Meetings
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="backlog" className="space-y-4">
           <ProductBacklog 
@@ -320,6 +326,9 @@ const ProjectPage = () => {
               ))}
             </div>
           </div>
+        </TabsContent>
+        <TabsContent value="meetings">
+          <MeetingsList projectId={projectId || ""} />
         </TabsContent>
       </Tabs>
       
