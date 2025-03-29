@@ -116,30 +116,7 @@ const SprintList = ({ sprints, projectId, title, onSprintDeleted }: SprintListPr
     }
   };
 
-  const renderSprintCategory = (categoryTitle: string, categoryIcon: any, categoryItems: Sprint[], variant: string = 'default') => {
-    if (categoryItems.length === 0) return null;
-    
-    return (
-      <div className="space-y-4 mb-8">
-        <div className="flex items-center gap-2">
-          <h3 className="text-lg font-medium">{categoryTitle}</h3>
-          {categoryIcon}
-          <Badge variant={variant as any}>{categoryItems.length}</Badge>
-        </div>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {categoryItems.map(sprint => (
-            <SprintCard 
-              key={sprint.id} 
-              sprint={sprint} 
-              handleNavigateToSprint={handleNavigateToSprint}
-              handleDeleteSprint={handleDeleteSprint}
-              isDeleting={isDeleting}
-            />
-          ))}
-        </div>
-      </div>
-    );
-  };
+  // Removed the first declaration of renderSprintCategory
 
   const SprintCard = ({ 
     sprint, 
@@ -214,7 +191,7 @@ const SprintList = ({ sprints, projectId, title, onSprintDeleted }: SprintListPr
     categoryIcon: React.ReactNode,
     categoryItems: Sprint[],
     variant: string = 'default',
-    emptyMessage: string
+    emptyMessage: string = 'No sprints available'
   ) => {
     return (
       <div className="space-y-4 mb-8">
