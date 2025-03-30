@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -260,6 +261,12 @@ const ProductBacklog = ({ projectId, onRefresh, activeSprint }: ProductBacklogPr
     }
   };
 
+  // Sort tasks by priority (high -> medium -> low)
+  const priorityOrder = { high: 0, medium: 1, low: 2 };
+  const sortedTasks = [...tasks].sort((a, b) => {
+    return priorityOrder[a.priority as keyof typeof priorityOrder] - priorityOrder[b.priority as keyof typeof priorityOrder];
+  });
+
   return (
     <Card className="h-full flex flex-col">
       <CardHeader className="flex flex-row items-center justify-between">
@@ -272,21 +279,32 @@ const ProductBacklog = ({ projectId, onRefresh, activeSprint }: ProductBacklogPr
         </div>
         <Button onClick={() => setShowCreateTaskDialog(true)}>
           <Plus className="mr-2 h-4 w-4" />
-          Add Task
+          Create Task
         </Button>
       </CardHeader>
-      <CardContent className="flex-1 overflow-hidden">
+      <CardContent className="p-4 flex-grow">
         {isLoading ? (
-          <div className="text-center py-4">
-            <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full mb-2 mx-auto"></div>
-            <p className="text-sm text-muted-foreground">Loading backlog...</p>
+          <div className="flex justify-center items-center h-40">
+            <div className="animate-spin h-6 w-6 border-4 border-primary border-t-transparent rounded-full"></div>
           </div>
-        ) : tasks.length > 0 ? (
-          <ScrollArea className="h-[calc(100vh-300px)]">
-            <div className="space-y-2 pr-4">
-              {tasks.map((task) => (
-                <DraggableTaskItem 
-                  key={task.id} 
+        ) : sortedTasks.length === 0 ? (
+          <div className="text-center py-8">
+            <ListChecks className="mx-auto h-12 w-12 text-muted-foreground" />
+            <h3 className="mt-2 text-lg font-medium">No tasks in backlog</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Get started by creating your first task
+            </p>
+            <Button onClick={() => setShowCreateTaskDialog(true)} className="mt-4">
+              <Plus className="mr-2 h-4 w-4" />
+              Create Task
+            </Button>
+          </div>
+        ) : (
+          <ScrollArea className="h-[calc(100vh-250px)]">
+            <div className="space-y-1">
+              {sortedTasks.map((task) => (
+                <DraggableTaskItem
+                  key={task.id}
                   task={task}
                   onEdit={handleEditTask}
                   onMove={handleMoveTask}
@@ -296,46 +314,37 @@ const ProductBacklog = ({ projectId, onRefresh, activeSprint }: ProductBacklogPr
               ))}
             </div>
           </ScrollArea>
-        ) : (
-          <div className="text-center py-8">
-            <ListChecks className="h-12 w-12 text-muted-foreground mb-4 mx-auto" />
-            <h3 className="text-lg font-medium mb-2">No tasks in backlog</h3>
-            <p className="text-muted-foreground mb-4">Add tasks to your product backlog to start planning your sprints</p>
-          </div>
         )}
       </CardContent>
 
-      {/* Create Task Dialog */}
-      {user && (
-        <>
-          <CreateTaskDialog
-            open={showCreateTaskDialog}
-            onOpenChange={setShowCreateTaskDialog}
-            onTaskCreated={handleCreateTask}
-            projectId={projectId}
-            userId={user.id}
-          />
-          
-          {selectedTask && (
-            <>
-              <EditTaskDialog
-                open={showEditTaskDialog}
-                onOpenChange={setShowEditTaskDialog}
-                task={selectedTask}
-                userId={user.id}
-                onTaskUpdated={handleTaskUpdated}
-              />
-              
-              <MoveTaskDialog
-                open={showMoveTaskDialog}
-                onOpenChange={setShowMoveTaskDialog}
-                task={selectedTask}
-                sprints={sprints}
-                onTaskMoved={handleTaskMoved}
-              />
-            </>
-          )}
-        </>
+      {showCreateTaskDialog && (
+        <CreateTaskDialog
+          open={showCreateTaskDialog}
+          onOpenChange={setShowCreateTaskDialog}
+          userId={user?.id || ""}
+          projectId={projectId}
+          onTaskCreated={handleCreateTask}
+        />
+      )}
+
+      {selectedTask && showEditTaskDialog && (
+        <EditTaskDialog
+          task={selectedTask}
+          open={showEditTaskDialog}
+          onOpenChange={setShowEditTaskDialog}
+          userId={user?.id || ""}
+          onTaskUpdated={handleTaskUpdated}
+        />
+      )}
+
+      {selectedTask && showMoveTaskDialog && (
+        <MoveTaskDialog
+          task={selectedTask}
+          open={showMoveTaskDialog}
+          onOpenChange={setShowMoveTaskDialog}
+          sprints={sprints}
+          onTaskMoved={handleTaskMoved}
+        />
       )}
     </Card>
   );

@@ -74,6 +74,12 @@ const SortableTaskCard = ({ task, onEdit, onDelete }: { task: Task; onEdit: (tas
 
 // Kanban Column with Droppable Support
 const KanbanColumn = ({ title, tasks, onEdit, onDelete, columnId, columnIndex }: KanbanColumnProps) => {
+  // Sort tasks by priority (high -> medium -> low)
+  const priorityOrder = { high: 0, medium: 1, low: 2 };
+  const sortedTasks = [...tasks].sort((a, b) => {
+    return priorityOrder[a.priority as keyof typeof priorityOrder] - priorityOrder[b.priority as keyof typeof priorityOrder];
+  });
+  
   return (
     <Card 
       className="flex-1 min-w-[280px] max-w-[350px] bg-secondary/30 h-fit" 
@@ -86,9 +92,9 @@ const KanbanColumn = ({ title, tasks, onEdit, onDelete, columnId, columnIndex }:
       </CardHeader>
       <CardContent className="p-2 min-h-[100px]">
         <ScrollArea className="h-[calc(100vh-300px)] pr-2">
-          <SortableContext items={tasks.map(task => task.id)} strategy={verticalListSortingStrategy}>
+          <SortableContext items={sortedTasks.map(task => task.id)} strategy={verticalListSortingStrategy}>
             <div className="w-full space-y-0 pb-3" data-column-drop-container={columnId}>
-              {tasks.map(task => (
+              {sortedTasks.map(task => (
                 <SortableTaskCard 
                   key={task.id} 
                   task={task} 
