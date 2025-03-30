@@ -4,7 +4,7 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { Project } from "@/types/project";
 import { Sprint } from "@/types/sprint";
 import { fetchProjectById } from "@/lib/supabase/projects";
-import { fetchProjectSprints, getActiveSprint } from "@/lib/supabase/sprints";
+import { fetchProjectSprints, getActiveSprintForProject } from "@/lib/supabase/sprints";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -27,7 +27,7 @@ import SprintList from "@/components/SprintList";
 const ProjectPage = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
   const [project, setProject] = useState<Project | null>(null);
   const [sprints, setSprints] = useState<Sprint[]>([]);
@@ -44,7 +44,7 @@ const ProjectPage = () => {
       try {
         setIsLoadingProject(true);
         const data = await fetchProjectById(projectId);
-        setProject(data);
+        setProject(data as Project);
       } catch (error) {
         console.error("Error fetching project:", error);
         toast({
@@ -70,7 +70,7 @@ const ProjectPage = () => {
         setSprints(sprintsList);
         
         // Fetch active sprint
-        const active = await getActiveSprint(projectId);
+        const active = await getActiveSprintForProject(projectId);
         setActiveSprint(active);
       } catch (error) {
         console.error("Error fetching sprints:", error);
@@ -99,12 +99,12 @@ const ProjectPage = () => {
     
     try {
       const data = await fetchProjectById(projectId);
-      setProject(data);
+      setProject(data as Project);
       
       const sprintsList = await fetchProjectSprints(projectId);
       setSprints(sprintsList);
       
-      const active = await getActiveSprint(projectId);
+      const active = await getActiveSprintForProject(projectId);
       setActiveSprint(active);
     } catch (error) {
       console.error("Error refreshing project:", error);
