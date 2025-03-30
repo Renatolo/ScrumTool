@@ -1,20 +1,11 @@
-
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate, useParams } from "react-router-dom";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { fetchProject, fetchActiveProjectSprint } from "@/lib/supabase/projects";
 import { fetchProjectSprints } from "@/lib/supabase/sprints";
-import { Sprint } from "@/types/sprint";
-import { Project } from "@/types/project";
 import CreateSprintDialog from "@/components/CreateSprintDialog";
 import KanbanBoard from "@/components/KanbanBoard";
 import ProductBacklog from "@/components/ProductBacklog";
@@ -22,10 +13,11 @@ import MeetingsList from "@/components/MeetingsList";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CalendarPlus, Users } from "lucide-react";
 import InviteUserDialog from "@/components/InviteUserDialog";
-import { ProjectMember, useFetchProjectMembers } from "@/hooks/useFetchProjectMembers";
+import { useFetchProjectMembers } from "@/hooks/useFetchProjectMembers";
 import EditMemberRoleDialog from "@/components/EditMemberRoleDialog";
 import BurndownChart from "@/components/BurndownChart";
 import SprintsList from "@/components/SprintsList";
+import { Project } from "@/types/project";
 
 const ProjectPage = () => {
   const { user } = useAuth();
@@ -34,24 +26,23 @@ const ProjectPage = () => {
   const { toast } = useToast();
   const [showCreateSprint, setShowCreateSprint] = useState(false);
   const [project, setProject] = useState<Project | null>(null);
-  const [allSprints, setAllSprints] = useState<Sprint[]>([]);
-  const [activeSprint, setActiveSprint] = useState<Sprint | null>(null);
+  const [allSprints, setAllSprints] = useState([]);
+  const [activeSprint, setActiveSprint] = useState(null);
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
   const [currentTab, setCurrentTab] = useState("overview");
-  const [selectedMember, setSelectedMember] = useState<ProjectMember | null>(null);
+  const [selectedMember, setSelectedMember] = useState(null);
   const [isEditRoleDialogOpen, setIsEditRoleDialogOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const kanbanBoardRef = useRef<{ refreshBoard: () => void } | null>(null);
-
+  const kanbanBoardRef = useRef(null);
   const { members, loading: loadingMembers, refreshMembers } = useFetchProjectMembers(projectId || "");
-  
+
   useEffect(() => {
     if (!projectId) return;
-    
+
     const loadProject = async () => {
       try {
-        const project = await fetchProject(projectId);
-        if (!project) {
+        const projectData = await fetchProject(projectId);
+        if (!projectData) {
           toast({
             title: "Project not found",
             description: "The project you requested does not exist",
@@ -61,16 +52,13 @@ const ProjectPage = () => {
           return;
         }
         
-        setProject(project);
-        
-        // Load active sprint
+        setProject(projectData as unknown as Project);
+
         const activeSprint = await fetchActiveProjectSprint(projectId);
         setActiveSprint(activeSprint);
-        
-        // Load all sprints
+
         const sprints = await fetchProjectSprints(projectId);
         setAllSprints(sprints);
-        
       } catch (error) {
         console.error("Error loading project:", error);
         toast({
@@ -80,19 +68,18 @@ const ProjectPage = () => {
         });
       }
     };
-    
+
     loadProject();
   }, [projectId, navigate]);
-  
+
   if (!user) {
     return <div>Loading...</div>;
   }
-  
+
   const handleCreateSprint = async (sprint: Sprint) => {
     try {
       setAllSprints((prev) => [...prev, sprint]);
       
-      // If this is the active sprint, update the active sprint state
       const today = new Date();
       const sprintStart = new Date(sprint.startDate);
       const sprintEnd = new Date(sprint.endDate);
@@ -106,7 +93,6 @@ const ProjectPage = () => {
         description: `Sprint "${sprint.name}" has been created`,
       });
       
-      // Close the dialog
       setShowCreateSprint(false);
     } catch (error) {
       console.error("Error creating sprint:", error);
@@ -122,21 +108,18 @@ const ProjectPage = () => {
     setSelectedMember(member);
     setIsEditRoleDialogOpen(true);
   };
-  
+
   const refreshProjectData = async () => {
     if (!projectId) return;
     
     setIsRefreshing(true);
     try {
-      // Refresh active sprint
       const activeSprint = await fetchActiveProjectSprint(projectId);
       setActiveSprint(activeSprint);
       
-      // Refresh all sprints
       const sprints = await fetchProjectSprints(projectId);
       setAllSprints(sprints);
       
-      // Refresh kanban board if available
       if (kanbanBoardRef.current && activeSprint) {
         kanbanBoardRef.current.refreshBoard();
       }
@@ -151,7 +134,7 @@ const ProjectPage = () => {
       setIsRefreshing(false);
     }
   };
-  
+
   if (!project) {
     return (
       <div className="flex justify-center items-center h-screen">
@@ -159,7 +142,7 @@ const ProjectPage = () => {
       </div>
     );
   }
-  
+
   return (
     <div className="container mx-auto py-6 space-y-6">
       <div className="flex justify-between items-center">
@@ -194,10 +177,7 @@ const ProjectPage = () => {
 
         <TabsContent value="overview">
           <div className="grid grid-cols-1 gap-6">
-            {/* Burndown chart */}
             <BurndownChart projectId={projectId || ""} projectName={project.name} />
-            
-            {/* All Sprints section - Using our new component */}
             <SprintsList 
               projectId={projectId || ""} 
               onCreateClick={() => setShowCreateSprint(true)} 
@@ -308,7 +288,6 @@ const ProjectPage = () => {
         </TabsContent>
       </Tabs>
 
-      {/* Dialogs */}
       <CreateSprintDialog
         open={showCreateSprint}
         onClose={() => setShowCreateSprint(false)}
@@ -318,7 +297,7 @@ const ProjectPage = () => {
         activeSprintId={activeSprint?.id}
         existingSprints={allSprints}
       />
-      
+
       <InviteUserDialog
         open={isInviteDialogOpen}
         onClose={() => setIsInviteDialogOpen(false)}
@@ -327,7 +306,7 @@ const ProjectPage = () => {
           refreshMembers();
         }}
       />
-      
+
       {selectedMember && (
         <EditMemberRoleDialog
           open={isEditRoleDialogOpen}

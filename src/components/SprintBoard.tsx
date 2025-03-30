@@ -1,3 +1,4 @@
+
 import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -5,7 +6,16 @@ import { fetchSprints } from "@/lib/supabase/sprints";
 import { Sprint } from "@/types/sprint";
 import { useToast } from "@/hooks/use-toast";
 import KanbanBoard from "@/components/KanbanBoard";
-import { DndContext, DragOverlay, useSensors, useSensor, PointerSensor } from "@dnd-kit/core";
+import { 
+  DndContext, 
+  DragOverlay, 
+  useSensors, 
+  useSensor, 
+  PointerSensor,
+  KeyboardSensor,
+  TouchSensor
+} from "@dnd-kit/core";
+import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { Task } from "@/types/task";
 import { updateTask } from "@/lib/supabase/tasks";
 
@@ -17,9 +27,16 @@ const SprintBoard = () => {
   const { user } = useAuth();
   const [activeTask, setActiveTask] = useState<Task | null>(null);
 
+  // Configure better sensors for improved drag and drop experience
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: 8 },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 250, tolerance: 5 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
     })
   );
 
@@ -63,8 +80,66 @@ const SprintBoard = () => {
     
     if (!active || !over || !user) return;
     
+    // Check if dropping on a column
+    if (active.data?.current?.type === 'task' && over.id.startsWith('column-')) {
+      const task = active.data.current.task;
+      const columnId = over.id;
+      
+      // Determine the status based on the column
+      const statusMap: Record<string, Task["status"]> = {
+        "column-todo": "todo",
+        "column-in-progress": "in-progress",
+        "column-in-review": "in-review",
+        "column-done": "done",
+      };
+      
+      const newStatus = statusMap[columnId];
+      
+      if (!newStatus || newStatus === task.status) return;
+      
+      try {
+        // Set completedAt based on the new status
+        let completedAt = task.completedAt;
+        if (newStatus === 'done' && !completedAt) {
+          completedAt = new Date().toISOString();
+        } else if (newStatus !== 'done' && completedAt) {
+          completedAt = undefined;
+        }
+        
+        // Update the task with the new status
+        const updatedTask = {
+          ...task,
+          status: newStatus,
+          completedAt,
+          user_id: user.id
+        };
+        
+        await updateTask(updatedTask);
+        
+        toast({
+          title: "Task moved",
+          description: `Task moved to ${newStatus.replace("-", " ")}`,
+        });
+        
+        // Refresh the kanban board
+        if (sprintId) {
+          const kanbanBoardInstance = document.getElementById("kanban-board") as any;
+          if (kanbanBoardInstance && kanbanBoardInstance.refreshBoard) {
+            kanbanBoardInstance.refreshBoard();
+          }
+        }
+      } catch (error) {
+        console.error("Error updating task:", error);
+        toast({
+          title: "Error",
+          description: "Failed to move task",
+          variant: "destructive",
+        });
+      }
+    }
+    
     // Check if this is a product backlog task
-    if (active.data?.current?.type === 'product-backlog-task' && over.id.startsWith('column-')) {
+    else if (active.data?.current?.type === 'product-backlog-task' && over.id.startsWith('column-')) {
       const task = active.data.current.task;
       const columnId = over.id;
       
@@ -116,7 +191,7 @@ const SprintBoard = () => {
 
   const handleDragStart = (event: any) => {
     const { active } = event;
-    if (active.data?.current?.type === 'product-backlog-task') {
+    if (active.data?.current?.task) {
       setActiveTask(active.data.current.task);
     }
   };
