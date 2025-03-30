@@ -14,7 +14,8 @@ import {
   PointerSensor,
   KeyboardSensor,
   TouchSensor,
-  DragEndEvent
+  DragEndEvent,
+  DragOverEvent
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { Task } from "@/types/task";
@@ -28,14 +29,15 @@ const SprintBoard = () => {
   const { user } = useAuth();
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const kanbanBoardRef = useRef<any>(null);
+  const [currentDragOverColumn, setCurrentDragOverColumn] = useState<string | null>(null);
 
   // Configure better sensors for improved drag and drop experience
   const sensors = useSensors(
     useSensor(PointerSensor, {
-      activationConstraint: { distance: 8 },
+      activationConstraint: { distance: 5 }, // Slightly lower threshold to make dragging easier to initiate
     }),
     useSensor(TouchSensor, {
-      activationConstraint: { delay: 250, tolerance: 5 },
+      activationConstraint: { delay: 200, tolerance: 5 }, // Slightly lower delay for touch
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
@@ -74,9 +76,34 @@ const SprintBoard = () => {
     loadSprint();
   }, [sprintId, toast]);
 
+  const handleDragOver = (event: DragOverEvent) => {
+    const { over } = event;
+    if (over && over.id.toString().startsWith('column-')) {
+      setCurrentDragOverColumn(over.id.toString());
+      
+      // Highlight the column when hovering
+      const columnElements = document.querySelectorAll('[data-column-id]');
+      columnElements.forEach(el => {
+        if (el.getAttribute('data-column-id') === over.id.toString()) {
+          el.classList.add('ring-2', 'ring-primary', 'ring-opacity-70');
+        } else {
+          el.classList.remove('ring-2', 'ring-primary', 'ring-opacity-70');
+        }
+      });
+    } else {
+      setCurrentDragOverColumn(null);
+    }
+  };
+
   const handleDragEnd = async (event: DragEndEvent) => {
     setActiveTask(null);
     const { active, over } = event;
+    setCurrentDragOverColumn(null);
+    
+    // Remove any column highlighting
+    document.querySelectorAll('[data-column-id]').forEach(el => {
+      el.classList.remove('ring-2', 'ring-primary', 'ring-opacity-70');
+    });
     
     if (!active || !over || !user) return;
     
@@ -188,6 +215,19 @@ const SprintBoard = () => {
     if (active.data?.current?.task) {
       setActiveTask(active.data.current.task);
     }
+    // Add a class to the body to indicate dragging is happening
+    document.body.classList.add('is-dragging-task');
+  };
+
+  const handleDragCancel = () => {
+    setActiveTask(null);
+    setCurrentDragOverColumn(null);
+    // Remove dragging class
+    document.body.classList.remove('is-dragging-task');
+    // Remove any column highlighting
+    document.querySelectorAll('[data-column-id]').forEach(el => {
+      el.classList.remove('ring-2', 'ring-primary', 'ring-opacity-70');
+    });
   };
 
   if (loading) {
@@ -214,6 +254,8 @@ const SprintBoard = () => {
       sensors={sensors}
       onDragEnd={handleDragEnd}
       onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
+      onDragCancel={handleDragCancel}
     >
       <div className="container mx-auto p-4 max-w-full">
         <div className="overflow-x-auto pb-6">
@@ -222,7 +264,7 @@ const SprintBoard = () => {
         
         <DragOverlay>
           {activeTask && (
-            <div className="p-3 bg-white border rounded-md shadow-lg max-w-[220px]">
+            <div className="p-3 bg-white border rounded-md shadow-lg max-w-[220px] opacity-80">
               <h4 className="font-medium text-sm">{activeTask.title}</h4>
             </div>
           )}

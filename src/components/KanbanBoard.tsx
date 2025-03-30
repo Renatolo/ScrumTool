@@ -1,3 +1,4 @@
+
 import { useEffect, useState, forwardRef, useImperativeHandle } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -73,14 +74,19 @@ const SortableTaskCard = ({ task, onEdit, onDelete }: { task: Task; onEdit: (tas
 // Kanban Column with Droppable Support
 const KanbanColumn = ({ title, tasks, onEdit, onDelete, columnId, columnIndex }: KanbanColumnProps) => {
   return (
-    <Card className="flex-1 min-w-[280px] max-w-[350px] bg-secondary/30 h-fit" id={columnId}>
+    <Card 
+      className="flex-1 min-w-[280px] max-w-[350px] bg-secondary/30 h-fit" 
+      id={columnId} 
+      data-droppable="true"
+      data-column-id={columnId}
+    >
       <CardHeader className="bg-muted/30 pb-2">
         <CardTitle className="text-md font-medium">{title} ({tasks.length})</CardTitle>
       </CardHeader>
-      <CardContent className="p-2">
+      <CardContent className="p-2 min-h-[100px]">
         <ScrollArea className="h-[calc(100vh-300px)] pr-2">
           <SortableContext items={tasks.map(task => task.id)} strategy={verticalListSortingStrategy}>
-            <div className="w-full space-y-0 pb-3">
+            <div className="w-full space-y-0 pb-3" data-column-drop-container={columnId}>
               {tasks.map(task => (
                 <SortableTaskCard 
                   key={task.id} 
@@ -170,12 +176,26 @@ const KanbanBoard = forwardRef(({ sprintId }: KanbanBoardProps, ref) => {
     const foundTask = tasks.find(t => t.id === taskId);
     setActiveId(taskId);
     if (foundTask) setActiveTask(foundTask);
+    
+    // Add a class to the body to indicate dragging is happening
+    document.body.classList.add('is-dragging-task');
   };
 
   const handleDragOver = (event: DragOverEvent) => {
     const { over } = event;
     if (over) {
       setCurrentOverId(over.id as string);
+      
+      // Highlight the column when dragging over it
+      const columnId = over.id.toString();
+      const columnElements = document.querySelectorAll('[data-column-id]');
+      columnElements.forEach(el => {
+        if (el.getAttribute('data-column-id') === columnId) {
+          el.classList.add('ring-2', 'ring-primary', 'ring-opacity-70');
+        } else {
+          el.classList.remove('ring-2', 'ring-primary', 'ring-opacity-70');
+        }
+      });
     }
   };
 
@@ -184,6 +204,12 @@ const KanbanBoard = forwardRef(({ sprintId }: KanbanBoardProps, ref) => {
     setActiveTask(null);
     setActiveId(null);
     setCurrentOverId(null);
+    
+    // Remove dragging class and column highlights
+    document.body.classList.remove('is-dragging-task');
+    document.querySelectorAll('[data-column-id]').forEach(el => {
+      el.classList.remove('ring-2', 'ring-primary', 'ring-opacity-70');
+    });
 
     if (!over || !active) return;
 
@@ -191,19 +217,18 @@ const KanbanBoard = forwardRef(({ sprintId }: KanbanBoardProps, ref) => {
     const task = tasks.find(t => t.id === taskId);
     if (!task || !user) return;
 
-    const newStatusMap: Record<string, Task["status"]> = {
-      "column-todo": "todo",
-      "column-in-progress": "in-progress",
-      "column-in-review": "in-review",
-      "column-done": "done",
-    };
-
-    // Determine if we're dropping on a column or another task
-    const overId = over.id as string;
+    // Handle dropping on a column
+    const overId = over.id.toString();
     const isColumn = overId.startsWith("column-");
     
     if (isColumn) {
-      // Dropping on a column
+      const newStatusMap: Record<string, Task["status"]> = {
+        "column-todo": "todo",
+        "column-in-progress": "in-progress",
+        "column-in-review": "in-review",
+        "column-done": "done",
+      };
+      
       const newStatus = newStatusMap[overId];
       if (!newStatus || newStatus === task.status) return;
 
@@ -318,7 +343,7 @@ const KanbanBoard = forwardRef(({ sprintId }: KanbanBoardProps, ref) => {
 
         <DragOverlay>
           {activeTask && (
-            <div className="w-[300px]">
+            <div className="w-[300px] opacity-80 shadow-lg">
               <TaskCard task={activeTask} onEdit={() => {}} onDelete={() => {}} isDraggable />
             </div>
           )}
