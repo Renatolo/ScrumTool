@@ -1,6 +1,7 @@
 
 import { supabase } from './client';
 import { Project } from '@/types/user';
+import { Sprint } from '@/types/sprint';
 
 export const fetchProjects = async (userId: string) => {
   try {
@@ -18,7 +19,7 @@ export const fetchProjects = async (userId: string) => {
   }
 };
 
-export const fetchProjectById = async (projectId: string) => {
+export const fetchProject = async (projectId: string) => {
   try {
     const { data, error } = await supabase
       .from('projects')
@@ -32,6 +33,47 @@ export const fetchProjectById = async (projectId: string) => {
   } catch (error) {
     console.error('Error fetching project:', error);
     throw error;
+  }
+};
+
+export const fetchActiveProjectSprint = async (projectId: string): Promise<Sprint | null> => {
+  try {
+    const today = new Date().toISOString().split('T')[0]; // Format as YYYY-MM-DD
+    
+    const { data, error } = await supabase
+      .from('sprints')
+      .select('*')
+      .eq('project_id', projectId)
+      .lte('start_date', today)
+      .gte('end_date', today)
+      .order('start_date', { ascending: false })
+      .limit(1)
+      .single();
+    
+    if (error) {
+      // If no active sprint is found, this will error with PGRST116, which is expected
+      if (error.code === 'PGRST116') {
+        return null;
+      }
+      throw error;
+    }
+    
+    if (!data) return null;
+    
+    // Convert database field names to camelCase
+    const sprint: Sprint = {
+      id: data.id,
+      name: data.name,
+      startDate: data.start_date,
+      endDate: data.end_date,
+      tasks: data.tasks || [],
+      projectId: data.project_id
+    };
+    
+    return sprint;
+  } catch (error) {
+    console.error('Error fetching active sprint:', error);
+    return null;
   }
 };
 
@@ -144,4 +186,8 @@ export const inviteUserByEmail = async (projectId: string, userId: string) => {
     console.error('Error inviting user:', error);
     throw error;
   }
+};
+
+export const fetchProjectById = async (projectId: string) => {
+  return fetchProject(projectId);
 };
