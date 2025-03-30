@@ -15,11 +15,13 @@ import {
   KeyboardSensor,
   TouchSensor,
   DragEndEvent,
-  DragOverEvent
+  DragOverEvent,
+  DragStartEvent
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { Task } from "@/types/task";
 import { updateTask } from "@/lib/supabase/tasks";
+import TaskCard from "./TaskCard";
 
 const SprintBoard = () => {
   const { sprintId } = useParams<{ sprintId: string }>();
@@ -75,6 +77,15 @@ const SprintBoard = () => {
 
     loadSprint();
   }, [sprintId, toast]);
+
+  const handleDragStart = (event: DragStartEvent) => {
+    const { active } = event;
+    if (active.data?.current?.task) {
+      setActiveTask(active.data.current.task);
+    }
+    // Add a class to the body to indicate dragging is happening
+    document.body.classList.add('is-dragging-task');
+  };
 
   const handleDragOver = (event: DragOverEvent) => {
     const { over } = event;
@@ -210,15 +221,6 @@ const SprintBoard = () => {
     }
   };
 
-  const handleDragStart = (event: any) => {
-    const { active } = event;
-    if (active.data?.current?.task) {
-      setActiveTask(active.data.current.task);
-    }
-    // Add a class to the body to indicate dragging is happening
-    document.body.classList.add('is-dragging-task');
-  };
-
   const handleDragCancel = () => {
     setActiveTask(null);
     setCurrentDragOverColumn(null);
@@ -264,8 +266,13 @@ const SprintBoard = () => {
         
         <DragOverlay>
           {activeTask && (
-            <div className="p-3 bg-white border rounded-md shadow-lg max-w-[220px] opacity-80">
-              <h4 className="font-medium text-sm">{activeTask.title}</h4>
+            <div className="p-3 bg-white border rounded-md shadow-lg max-w-[250px] opacity-80">
+              <TaskCard 
+                task={activeTask} 
+                onEdit={() => {}} 
+                onDelete={() => {}} 
+                isDraggable={false}
+              />
             </div>
           )}
         </DragOverlay>

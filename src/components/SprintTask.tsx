@@ -17,7 +17,7 @@ import EditTaskDialog from "./EditTaskDialog";
 import { Profile } from "@/types/user";
 import { Avatar, AvatarImage, AvatarFallback, AvatarGroup } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { supabase } from "@/lib/supabase/client";
+import { supabase } from "@/integrations/supabase/client";
 
 interface SprintTaskProps {
   task: Task;
@@ -39,7 +39,13 @@ const SprintTask = ({ task, sprints, onDelete, onUpdate, onMove, onMoveToBacklog
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: task.id });
+  } = useSortable({ 
+    id: task.id,
+    data: {
+      type: 'task',
+      task
+    }
+  });
 
   useEffect(() => {
     if (task.assignees && task.assignees.length > 0) {
@@ -74,6 +80,7 @@ const SprintTask = ({ task, sprints, onDelete, onUpdate, onMove, onMoveToBacklog
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
+    cursor: 'grab'
   };
 
   const getPriorityColor = (priority: string) => {
@@ -121,16 +128,13 @@ const SprintTask = ({ task, sprints, onDelete, onUpdate, onMove, onMoveToBacklog
         ref={setNodeRef}
         style={style}
         className="p-4 backdrop-blur-sm bg-card/80 border shadow-sm hover:shadow-md transition-shadow animate-fade-up"
+        {...attributes}
+        {...listeners}
       >
         <div className="flex items-start gap-4">
-          <button
-            {...attributes}
-            {...listeners}
-            className="mt-1 touch-none"
-            aria-label="Drag to reorder"
-          >
+          <div className="mt-1 touch-none cursor-grab active:cursor-grabbing">
             <Grip className="w-4 h-4 text-muted-foreground" />
-          </button>
+          </div>
 
           <div className="flex-1 space-y-2">
             <div className="flex items-start justify-between">
@@ -160,7 +164,7 @@ const SprintTask = ({ task, sprints, onDelete, onUpdate, onMove, onMoveToBacklog
                 {sprints.length > 0 && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon">
+                      <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}>
                         <MoveRight className="w-4 h-4" />
                       </Button>
                     </DropdownMenuTrigger>
@@ -186,14 +190,20 @@ const SprintTask = ({ task, sprints, onDelete, onUpdate, onMove, onMoveToBacklog
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => setIsEditDialogOpen(true)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsEditDialogOpen(true);
+                  }}
                 >
                   <Edit className="w-4 h-4" />
                 </Button>
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => onDelete(task.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(task.id);
+                  }}
                 >
                   <Trash className="w-4 h-4" />
                 </Button>

@@ -60,11 +60,12 @@ const SortableTaskCard = ({ task, onEdit, onDelete }: { task: Task; onEdit: (tas
     zIndex: isDragging ? 10 : 1,
     width: '100%',
     position: isDragging ? 'relative' : 'static',
+    cursor: 'grab',
   } as React.CSSProperties;
 
   return (
-    <div ref={setNodeRef} style={style} className="w-full touch-none mb-3">
-      <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing">
+    <div ref={setNodeRef} style={style} className="w-full touch-none mb-3" {...attributes} {...listeners}>
+      <div className="cursor-grab active:cursor-grabbing">
         <TaskCard task={task} onEdit={onEdit} onDelete={onDelete} isDraggable={true} />
       </div>
     </div>
@@ -92,7 +93,7 @@ const KanbanColumn = ({ title, tasks, onEdit, onDelete, columnId, columnIndex }:
                   key={task.id} 
                   task={task} 
                   onEdit={onEdit} 
-                  onDelete={onDelete} 
+                  onDelete={onDelete}
                 />
               ))}
             </div>
@@ -172,6 +173,7 @@ const KanbanBoard = forwardRef(({ sprintId }: KanbanBoardProps, ref) => {
   };
 
   const handleDragStart = (event: DragStartEvent) => {
+    console.log("Drag started:", event);
     const taskId = event.active.id as string;
     const foundTask = tasks.find(t => t.id === taskId);
     setActiveId(taskId);
@@ -182,24 +184,28 @@ const KanbanBoard = forwardRef(({ sprintId }: KanbanBoardProps, ref) => {
   };
 
   const handleDragOver = (event: DragOverEvent) => {
+    console.log("Drag over:", event);
     const { over } = event;
     if (over) {
       setCurrentOverId(over.id as string);
       
       // Highlight the column when dragging over it
-      const columnId = over.id.toString();
-      const columnElements = document.querySelectorAll('[data-column-id]');
-      columnElements.forEach(el => {
-        if (el.getAttribute('data-column-id') === columnId) {
-          el.classList.add('ring-2', 'ring-primary', 'ring-opacity-70');
-        } else {
-          el.classList.remove('ring-2', 'ring-primary', 'ring-opacity-70');
-        }
-      });
+      if (over.id.toString().startsWith('column-')) {
+        const columnId = over.id.toString();
+        const columnElements = document.querySelectorAll('[data-column-id]');
+        columnElements.forEach(el => {
+          if (el.getAttribute('data-column-id') === columnId) {
+            el.classList.add('ring-2', 'ring-primary', 'ring-opacity-70');
+          } else {
+            el.classList.remove('ring-2', 'ring-primary', 'ring-opacity-70');
+          }
+        });
+      }
     }
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
+    console.log("Drag ended:", event);
     const { active, over } = event;
     setActiveTask(null);
     setActiveId(null);
@@ -344,7 +350,7 @@ const KanbanBoard = forwardRef(({ sprintId }: KanbanBoardProps, ref) => {
         <DragOverlay>
           {activeTask && (
             <div className="w-[300px] opacity-80 shadow-lg">
-              <TaskCard task={activeTask} onEdit={() => {}} onDelete={() => {}} isDraggable />
+              <TaskCard task={activeTask} onEdit={() => {}} onDelete={() => {}} isDraggable={false} />
             </div>
           )}
         </DragOverlay>
