@@ -1,8 +1,8 @@
 
 import { useParams } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { fetchSprints } from "@/lib/supabase/sprints";
+import { fetchSprintById } from "@/lib/supabase/sprints";
 import { Sprint } from "@/types/sprint";
 import { useToast } from "@/hooks/use-toast";
 import KanbanBoard from "@/components/KanbanBoard";
@@ -13,7 +13,8 @@ import {
   useSensor, 
   PointerSensor,
   KeyboardSensor,
-  TouchSensor
+  TouchSensor,
+  DragEndEvent
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { Task } from "@/types/task";
@@ -26,6 +27,7 @@ const SprintBoard = () => {
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const [activeTask, setActiveTask] = useState<Task | null>(null);
+  const kanbanBoardRef = useRef<any>(null);
 
   // Configure better sensors for improved drag and drop experience
   const sensors = useSensors(
@@ -46,9 +48,7 @@ const SprintBoard = () => {
 
       try {
         setLoading(true);
-        // Fetch all sprints and find the one matching the ID
-        const sprints = await fetchSprints(user?.id || "");
-        const foundSprint = sprints.find(s => s.id === sprintId);
+        const foundSprint = await fetchSprintById(sprintId);
         
         if (foundSprint) {
           setSprint(foundSprint);
@@ -72,18 +72,18 @@ const SprintBoard = () => {
     };
 
     loadSprint();
-  }, [sprintId, user, toast]);
+  }, [sprintId, toast]);
 
-  const handleDragEnd = async (event: any) => {
+  const handleDragEnd = async (event: DragEndEvent) => {
     setActiveTask(null);
     const { active, over } = event;
     
     if (!active || !over || !user) return;
     
     // Check if dropping on a column
-    if (active.data?.current?.type === 'task' && over.id.startsWith('column-')) {
-      const task = active.data.current.task;
-      const columnId = over.id;
+    if (active.data?.current?.type === 'task' && over.id.toString().startsWith('column-')) {
+      const task = active.data.current.task as Task;
+      const columnId = over.id.toString();
       
       // Determine the status based on the column
       const statusMap: Record<string, Task["status"]> = {
@@ -122,11 +122,8 @@ const SprintBoard = () => {
         });
         
         // Refresh the kanban board
-        if (sprintId) {
-          const kanbanBoardInstance = document.getElementById("kanban-board") as any;
-          if (kanbanBoardInstance && kanbanBoardInstance.refreshBoard) {
-            kanbanBoardInstance.refreshBoard();
-          }
+        if (sprintId && kanbanBoardRef.current?.refreshBoard) {
+          kanbanBoardRef.current.refreshBoard();
         }
       } catch (error) {
         console.error("Error updating task:", error);
@@ -139,9 +136,9 @@ const SprintBoard = () => {
     }
     
     // Check if this is a product backlog task
-    else if (active.data?.current?.type === 'product-backlog-task' && over.id.startsWith('column-')) {
-      const task = active.data.current.task;
-      const columnId = over.id;
+    else if (active.data?.current?.type === 'product-backlog-task' && over.id.toString().startsWith('column-')) {
+      const task = active.data.current.task as Task;
+      const columnId = over.id.toString();
       
       // Determine the status based on the column
       const statusMap: Record<string, Task["status"]> = {
@@ -172,11 +169,8 @@ const SprintBoard = () => {
         });
         
         // Refresh the kanban board to show the new task
-        if (sprintId) {
-          const kanbanBoardInstance = document.getElementById("kanban-board") as any;
-          if (kanbanBoardInstance && kanbanBoardInstance.refreshBoard) {
-            kanbanBoardInstance.refreshBoard();
-          }
+        if (sprintId && kanbanBoardRef.current?.refreshBoard) {
+          kanbanBoardRef.current.refreshBoard();
         }
       } catch (error) {
         console.error("Error updating task:", error);
@@ -223,7 +217,7 @@ const SprintBoard = () => {
     >
       <div className="container mx-auto p-4 max-w-full">
         <div className="overflow-x-auto pb-6">
-          {sprintId && <KanbanBoard sprintId={sprintId} />}
+          {sprintId && <KanbanBoard sprintId={sprintId} ref={kanbanBoardRef} />}
         </div>
         
         <DragOverlay>
