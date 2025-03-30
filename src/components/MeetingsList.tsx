@@ -6,6 +6,7 @@ import { Plus, Calendar } from "lucide-react";
 import CreateMeetingDialog from "./CreateMeetingDialog";
 import EditMeetingDialog from "./EditMeetingDialog";
 import MeetingsSection from "./meetings/MeetingsSection";
+import PaginatedMeetingsSection from "./meetings/PaginatedMeetingsSection";
 import { useMeetings } from "@/hooks/useMeetings";
 
 interface MeetingsListProps {
@@ -68,14 +69,14 @@ const MeetingsList = ({ projectId }: MeetingsListProps) => {
             className="bg-green-50/20"
           />
           
-          {/* Past Meetings */}
-          <MeetingsSection
+          {/* Past Meetings - Now Paginated */}
+          <PaginatedMeetingsSection
             title="Past Meetings"
             meetings={pastMeetings}
             onEdit={handleEditMeeting}
             onDelete={deleteMeeting}
-            isPast={true}
             className="bg-red-50/10"
+            itemsPerPage={3}
           />
         </div>
       )}
