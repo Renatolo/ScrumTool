@@ -17,6 +17,8 @@ import { useFetchProjectMembers } from "@/hooks/useFetchProjectMembers";
 import EditMemberRoleDialog from "@/components/EditMemberRoleDialog";
 import BurndownChart from "@/components/BurndownChart";
 import SprintsList from "@/components/SprintsList";
+import { Sprint } from "@/types/sprint";
+import { ProjectMember } from "@/hooks/useFetchProjectMembers";
 import { Project } from "@/types/project";
 
 const ProjectPage = () => {
