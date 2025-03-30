@@ -1,361 +1,344 @@
+
 import { useState, useEffect, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/hooks/use-toast";
-import { Project, ProjectMember } from "@/types/user";
-import { Sprint } from "@/types/sprint";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useNavigate, useParams } from "react-router-dom";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { fetchProjectById } from "@/lib/supabase/projects";
-import { fetchProjectSprints, getActiveSprintForProject } from "@/lib/supabase/sprints";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { 
-  Bell, 
-  CalendarDays, 
-  ClipboardList, 
-  Code, 
-  ExternalLink, 
-  LineChart, 
-  Plus, 
-  Share2, 
-  Sprout,
-  Users,
-  UserCog,
-  UserPlus,
-  LayoutDashboard,
-  ArrowLeft,
-  Video
-} from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { supabase } from "@/lib/supabase/client";
-import { format } from "date-fns";
-import ProductBacklog from "@/components/ProductBacklog";
+import { useToast } from "@/hooks/use-toast";
+import { fetchProject, fetchActiveProjectSprint } from "@/lib/supabase/projects";
+import { fetchProjectSprints } from "@/lib/supabase/sprints";
+import { Sprint } from "@/types/sprint";
+import { Project } from "@/types/project";
 import CreateSprintDialog from "@/components/CreateSprintDialog";
 import KanbanBoard from "@/components/KanbanBoard";
-import BurndownChart from "@/components/BurndownChart";
-import InviteUserDialog from "@/components/InviteUserDialog";
-import EditMemberRoleDialog from "@/components/EditMemberRoleDialog";
+import ProductBacklog from "@/components/ProductBacklog";
 import MeetingsList from "@/components/MeetingsList";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CalendarPlus, Users } from "lucide-react";
+import InviteUserDialog from "@/components/InviteUserDialog";
+import { ProjectMember, useFetchProjectMembers } from "@/hooks/useFetchProjectMembers";
+import EditMemberRoleDialog from "@/components/EditMemberRoleDialog";
+import BurndownChart from "@/components/BurndownChart";
+import SprintsList from "@/components/SprintsList";
 
 const ProjectPage = () => {
-  const { projectId } = useParams();
-  const navigate = useNavigate();
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const { projectId } = useParams();
   const { toast } = useToast();
-  const kanbanBoardRef = useRef<{ refreshBoard: () => void }>(null);
+  const [showCreateSprint, setShowCreateSprint] = useState(false);
   const [project, setProject] = useState<Project | null>(null);
-  const [projectMembers, setProjectMembers] = useState<ProjectMember[]>([]);
-  const [sprints, setSprints] = useState<Sprint[]>([]);
+  const [allSprints, setAllSprints] = useState<Sprint[]>([]);
   const [activeSprint, setActiveSprint] = useState<Sprint | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [showCreateSprintDialog, setShowCreateSprintDialog] = useState(false);
-  const [showInviteDialog, setShowInviteDialog] = useState(false);
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [editMember, setEditMember] = useState<ProjectMember | null>(null);
+  const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
+  const [currentTab, setCurrentTab] = useState("overview");
+  const [selectedMember, setSelectedMember] = useState<ProjectMember | null>(null);
+  const [isEditRoleDialogOpen, setIsEditRoleDialogOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const kanbanBoardRef = useRef<{ refreshBoard: () => void } | null>(null);
 
+  const { members, loading: loadingMembers, refreshMembers } = useFetchProjectMembers(projectId || "");
+  
   useEffect(() => {
-    if (!projectId || !user) return;
-
-    const fetchData = async () => {
+    if (!projectId) return;
+    
+    const loadProject = async () => {
       try {
-        setLoading(true);
-        
-        const projectData = await fetchProjectById(projectId);
-        if (!projectData) {
+        const project = await fetchProject(projectId);
+        if (!project) {
           toast({
             title: "Project not found",
-            description: "The project you're looking for doesn't exist or you don't have access to it.",
+            description: "The project you requested does not exist",
             variant: "destructive",
           });
           navigate("/dashboard");
           return;
         }
-        setProject(projectData);
-
-        const memberIds = projectData.members || [];
-        if (memberIds.length > 0) {
-          const { data: memberProfiles } = await supabase
-            .from('profiles')
-            .select('id, name, avatar_url')
-            .in('id', memberIds);
-            
-          if (memberProfiles) {
-            const membersWithRoles = memberProfiles.map(profile => ({
-              ...profile,
-              role: projectData.member_roles && projectData.member_roles[profile.id] 
-                ? projectData.member_roles[profile.id] 
-                : "developer"
-            }));
-            setProjectMembers(membersWithRoles);
-          }
-        }
         
-        const projectSprints = await fetchProjectSprints(projectId);
-        setSprints(projectSprints);
+        setProject(project);
         
-        const currentActiveSprint = await getActiveSprintForProject(projectId);
-        setActiveSprint(currentActiveSprint);
+        // Load active sprint
+        const activeSprint = await fetchActiveProjectSprint(projectId);
+        setActiveSprint(activeSprint);
+        
+        // Load all sprints
+        const sprints = await fetchProjectSprints(projectId);
+        setAllSprints(sprints);
+        
       } catch (error) {
-        console.error("Error fetching project data:", error);
+        console.error("Error loading project:", error);
         toast({
           title: "Error",
           description: "Failed to load project data",
           variant: "destructive",
         });
-      } finally {
-        setLoading(false);
       }
     };
-
-    fetchData();
-  }, [projectId, user, navigate, toast, refreshTrigger]);
-
-  const handleGoToDashboard = () => {
-    navigate('/dashboard');
-  };
-
-  const handleCreateSprint = () => {
-    setShowCreateSprintDialog(true);
-  };
-
-  const handleSprintCreated = (newSprint: Sprint) => {
-    setSprints([...sprints, newSprint]);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const sprintStart = new Date(newSprint.startDate);
-    sprintStart.setHours(0, 0, 0, 0);
     
-    if (sprintStart.getTime() === today.getTime()) {
-      setActiveSprint(newSprint);
-    }
-    setShowCreateSprintDialog(false);
-  };
-
-  const refreshData = () => {
-    setRefreshTrigger(prev => prev + 1);
-    if (kanbanBoardRef.current) {
-      kanbanBoardRef.current.refreshBoard();
-    }
-  };
-
-  const handleInviteUser = () => {
-    setShowInviteDialog(true);
-  };
+    loadProject();
+  }, [projectId, navigate]);
   
+  if (!user) {
+    return <div>Loading...</div>;
+  }
+  
+  const handleCreateSprint = async (sprint: Sprint) => {
+    try {
+      setAllSprints((prev) => [...prev, sprint]);
+      
+      // If this is the active sprint, update the active sprint state
+      const today = new Date();
+      const sprintStart = new Date(sprint.startDate);
+      const sprintEnd = new Date(sprint.endDate);
+      
+      if (sprintStart <= today && sprintEnd >= today) {
+        setActiveSprint(sprint);
+      }
+      
+      toast({
+        title: "Sprint created",
+        description: `Sprint "${sprint.name}" has been created`,
+      });
+      
+      // Close the dialog
+      setShowCreateSprint(false);
+    } catch (error) {
+      console.error("Error creating sprint:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create sprint",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleEditMemberRole = (member: ProjectMember) => {
-    setEditMember(member);
+    setSelectedMember(member);
+    setIsEditRoleDialogOpen(true);
   };
-
-  const getRoleLabel = (role: string) => {
-    switch(role) {
-      case "product_owner": return "Product Owner";
-      case "scrum_master": return "Scrum Master";
-      case "developer": return "Developer";
-      default: return "Developer";
+  
+  const refreshProjectData = async () => {
+    if (!projectId) return;
+    
+    setIsRefreshing(true);
+    try {
+      // Refresh active sprint
+      const activeSprint = await fetchActiveProjectSprint(projectId);
+      setActiveSprint(activeSprint);
+      
+      // Refresh all sprints
+      const sprints = await fetchProjectSprints(projectId);
+      setAllSprints(sprints);
+      
+      // Refresh kanban board if available
+      if (kanbanBoardRef.current && activeSprint) {
+        kanbanBoardRef.current.refreshBoard();
+      }
+    } catch (error) {
+      console.error("Error refreshing project data:", error);
+      toast({
+        title: "Error",
+        description: "Failed to refresh project data",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRefreshing(false);
     }
   };
   
-  const getRoleBadgeVariant = (role: string) => {
-    switch(role) {
-      case "product_owner": return "default";
-      case "scrum_master": return "secondary";
-      case "developer": return "outline";
-      default: return "outline";
-    }
-  };
-
-  if (loading) {
+  if (!project) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="animate-spin h-12 w-12 border-4 border-primary border-t-transparent rounded-full"></div>
+      <div className="flex justify-center items-center h-screen">
+        <div className="animate-spin h-10 w-10 border-4 border-primary border-t-transparent rounded-full"></div>
       </div>
     );
   }
-
+  
   return (
-    <div className="container py-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+    <div className="container mx-auto py-6 space-y-6">
+      <div className="flex justify-between items-center">
         <div>
-          <div className="flex items-center gap-2 mb-2">
-            <Button variant="outline" size="icon" onClick={handleGoToDashboard}>
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <h1 className="text-3xl font-bold flex items-center gap-2">
-              <Sprout className="h-8 w-8" />
-              {project?.name}
-            </h1>
-          </div>
-          <p className="text-muted-foreground">{project?.description}</p>
+          <h1 className="text-3xl font-bold">{project.name}</h1>
+          <p className="text-muted-foreground">{project.description}</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={handleGoToDashboard}>
-            <LayoutDashboard className="mr-2 h-4 w-4" />
-            Back to Dashboard
+        <div className="flex space-x-2">
+          <Button
+            onClick={() => setIsInviteDialogOpen(true)}
+            variant="outline"
+            className="hidden sm:flex"
+          >
+            <Users className="mr-2 h-4 w-4" />
+            Add Member
           </Button>
-          <Button variant="outline" onClick={handleInviteUser}>
-            <UserPlus className="mr-2 h-4 w-4" />
-            Invite Member
-          </Button>
-          <Button onClick={handleCreateSprint}>
-            <Plus className="mr-2 h-4 w-4" />
+          <Button onClick={() => setShowCreateSprint(true)}>
+            <CalendarPlus className="mr-2 h-4 w-4" />
             Create Sprint
           </Button>
         </div>
       </div>
-      
-      {activeSprint && (
-        <Card className="mb-6 border-green-600/20 bg-green-50/10">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex justify-between items-center">
-              <div className="flex items-center">
-                <Bell className="mr-2 h-5 w-5 text-green-600" />
-                Active Sprint: {activeSprint.name}
-              </div>
-              <Badge className="bg-green-600">
-                <CalendarDays className="mr-2 h-4 w-4" />
-                {format(new Date(activeSprint.startDate), "MMM d")} - {format(new Date(activeSprint.endDate), "MMM d")}
-              </Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardFooter className="pt-2">
-            <Button variant="outline" className="w-full" onClick={() => navigate(`/sprint/${activeSprint.id}`)}>
-              <ExternalLink className="mr-2 h-4 w-4" />
-              View Sprint Details
-            </Button>
-          </CardFooter>
-        </Card>
-      )}
-      
-      <BurndownChart projectId={projectId || ""} projectName={project?.name || ""} />
-      
-      <Tabs defaultValue="backlog" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="backlog" className="flex items-center">
-            <ClipboardList className="mr-2 h-4 w-4" />
-            Product Backlog
-          </TabsTrigger>
-          {activeSprint && (
-            <TabsTrigger value="sprint-board" className="flex items-center">
-              <Code className="mr-2 h-4 w-4" />
-              Sprint Board
-            </TabsTrigger>
-          )}
-          {sprints.length > 0 && (
-            <TabsTrigger value="sprints" className="flex items-center">
-              <LineChart className="mr-2 h-4 w-4" />
-              All Sprints
-            </TabsTrigger>
-          )}
-          <TabsTrigger value="team" className="flex items-center">
-            <Users className="mr-2 h-4 w-4" />
-            Team Members
-          </TabsTrigger>
-          <TabsTrigger value="meetings" className="flex items-center">
-            <Video className="mr-2 h-4 w-4" />
-            Meetings
-          </TabsTrigger>
+
+      <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full">
+        <TabsList className="mb-4">
+          <TabsTrigger value="overview">Project Overview</TabsTrigger>
+          {activeSprint && <TabsTrigger value="sprint">Active Sprint</TabsTrigger>}
+          <TabsTrigger value="backlog">Product Backlog</TabsTrigger>
+          <TabsTrigger value="team">Team</TabsTrigger>
+          <TabsTrigger value="meetings">Meetings</TabsTrigger>
         </TabsList>
-        <TabsContent value="backlog" className="space-y-4">
+
+        <TabsContent value="overview">
+          <div className="grid grid-cols-1 gap-6">
+            {/* Burndown chart */}
+            <BurndownChart projectId={projectId || ""} projectName={project.name} />
+            
+            {/* All Sprints section - Using our new component */}
+            <SprintsList 
+              projectId={projectId || ""} 
+              onCreateClick={() => setShowCreateSprint(true)} 
+            />
+          </div>
+        </TabsContent>
+
+        {activeSprint && (
+          <TabsContent value="sprint">
+            <div className="mb-4">
+              <h2 className="text-2xl font-bold mb-2">{activeSprint.name}</h2>
+            </div>
+            <KanbanBoard 
+              sprintId={activeSprint.id} 
+              ref={kanbanBoardRef} 
+            />
+          </TabsContent>
+        )}
+
+        <TabsContent value="backlog">
           <ProductBacklog 
             projectId={projectId || ""} 
-            onRefresh={refreshData}
+            onRefresh={refreshProjectData} 
             activeSprint={activeSprint}
           />
         </TabsContent>
-        {activeSprint && (
-          <TabsContent value="sprint-board">
-            <KanbanBoard sprintId={activeSprint.id} ref={kanbanBoardRef} />
-          </TabsContent>
-        )}
-        <TabsContent value="sprints">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {sprints.map(sprint => (
-              <Card key={sprint.id} className={`cursor-pointer hover:border-primary transition-colors ${
-                sprint.id === activeSprint?.id ? 'border-green-600 bg-green-50/10' : ''
-              }`} onClick={() => navigate(`/sprint/${sprint.id}`)}>
-                <CardHeader>
-                  <CardTitle className="flex justify-between">
-                    <span>{sprint.name}</span>
-                    {sprint.id === activeSprint?.id && (
-                      <Badge variant="default" className="bg-green-600">Active</Badge>
-                    )}
-                  </CardTitle>
-                  <div className="text-sm text-muted-foreground flex items-center">
-                    <CalendarDays className="mr-2 h-4 w-4" />
-                    {format(new Date(sprint.startDate), "MMM d")} - {format(new Date(sprint.endDate), "MMM d")}
-                  </div>
-                </CardHeader>
-                <CardFooter>
-                  <Button variant="outline" className="w-full">
-                    View Sprint
-                  </Button>
-                </CardFooter>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
+
         <TabsContent value="team">
-          <div className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {projectMembers.map(member => (
-                <Card key={member.id}>
-                  <CardHeader>
-                    <div className="flex items-center gap-4">
-                      <Avatar>
-                        <AvatarImage src={member.avatar_url} alt={member.name} />
-                        <AvatarFallback>{member.name.charAt(0)}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <CardTitle className="text-lg">{member.name}</CardTitle>
-                        <Badge variant={getRoleBadgeVariant(member.role || "developer")}>
-                          {getRoleLabel(member.role || "developer")}
-                        </Badge>
+          <Card>
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <CardTitle>Team Members</CardTitle>
+                <Button onClick={() => setIsInviteDialogOpen(true)}>Add Member</Button>
+              </div>
+              <CardDescription>Manage your project team members and their roles</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                {loadingMembers ? (
+                  <div className="h-40 flex items-center justify-center">
+                    <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full"></div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {members.map((member) => (
+                      <Card key={member.id} className="bg-secondary/30 border">
+                        <CardContent className="p-4">
+                          <div className="flex items-center space-x-4">
+                            <div className="w-12 h-12 rounded-full overflow-hidden bg-muted">
+                              {member.avatar_url ? (
+                                <img
+                                  src={member.avatar_url}
+                                  alt={member.name}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center bg-primary/10 text-primary">
+                                  {member.name.charAt(0).toUpperCase()}
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium truncate">{member.name}</p>
+                              <div className="flex items-center">
+                                <span className="text-sm text-muted-foreground">
+                                  {member.role ? (
+                                    <span className="capitalize">{member.role.replace('_', ' ')}</span>
+                                  ) : (
+                                    "Developer"
+                                  )}
+                                </span>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-auto ml-2 text-xs hover:bg-muted p-1"
+                                  onClick={() => handleEditMemberRole(member)}
+                                >
+                                  Edit Role
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                    
+                    {members.length === 0 && (
+                      <div className="col-span-full py-8 text-center">
+                        <Users className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
+                        <h3 className="text-lg font-medium">No team members yet</h3>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Add team members to collaborate on this project
+                        </p>
+                        <Button onClick={() => setIsInviteDialogOpen(true)} className="mt-4">
+                          Add Team Member
+                        </Button>
                       </div>
-                    </div>
-                  </CardHeader>
-                  <CardFooter>
-                    {project?.members?.includes(user?.id || "") && (
-                      <Button variant="outline" className="w-full" onClick={() => handleEditMemberRole(member)}>
-                        <UserCog className="mr-2 h-4 w-4" />
-                        Change Role
-                      </Button>
                     )}
-                  </CardFooter>
-                </Card>
-              ))}
-            </div>
-          </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
+
         <TabsContent value="meetings">
           <MeetingsList projectId={projectId || ""} />
         </TabsContent>
       </Tabs>
-      
+
+      {/* Dialogs */}
       <CreateSprintDialog
-        open={showCreateSprintDialog}
-        onClose={() => setShowCreateSprintDialog(false)}
-        onCreateSprint={handleSprintCreated}
+        open={showCreateSprint}
+        onClose={() => setShowCreateSprint(false)}
+        onCreateSprint={handleCreateSprint}
         projectId={projectId || ""}
         hasActiveSprint={!!activeSprint}
         activeSprintId={activeSprint?.id}
-        existingSprints={sprints}
+        existingSprints={allSprints}
       />
       
       <InviteUserDialog
-        open={showInviteDialog}
-        onClose={() => setShowInviteDialog(false)}
+        open={isInviteDialogOpen}
+        onClose={() => setIsInviteDialogOpen(false)}
         projectId={projectId || ""}
-        onSuccess={refreshData}
+        onSuccess={() => {
+          refreshMembers();
+        }}
       />
       
-      {editMember && (
+      {selectedMember && (
         <EditMemberRoleDialog
-          open={!!editMember}
-          onClose={() => setEditMember(null)}
+          open={isEditRoleDialogOpen}
+          onClose={() => setIsEditRoleDialogOpen(false)}
           projectId={projectId || ""}
-          member={editMember}
-          onSuccess={refreshData}
+          member={selectedMember}
+          onSuccess={() => {
+            refreshMembers();
+            setIsEditRoleDialogOpen(false);
+            setSelectedMember(null);
+          }}
         />
       )}
     </div>

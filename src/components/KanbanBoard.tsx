@@ -18,9 +18,15 @@ import {
   useSensor, 
   useSensors, 
   PointerSensor,
-  useDroppable 
+  KeyboardSensor,
+  TouchSensor
 } from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import {
+  SortableContext, 
+  verticalListSortingStrategy,
+  arrayMove,
+  sortableKeyboardCoordinates
+} from "@dnd-kit/sortable";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
@@ -30,6 +36,7 @@ interface KanbanColumnProps {
   onEdit: (task: Task) => void;
   onDelete: (taskId: string) => void;
   columnId: string;
+  columnIndex: number;
 }
 
 interface KanbanBoardProps {
@@ -38,39 +45,53 @@ interface KanbanBoardProps {
 
 // Sortable Task Wrapper
 const SortableTaskCard = ({ task, onEdit, onDelete }: { task: Task; onEdit: (task: Task) => void; onDelete: (taskId: string) => void }) => {
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: task.id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ 
+    id: task.id,
+    data: {
+      type: 'task',
+      task
+    }
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 10 : 1,
     width: '100%',
-  };
+    position: isDragging ? 'relative' : 'static',
+  } as React.CSSProperties;
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="w-full">
-      <TaskCard task={task} onEdit={onEdit} onDelete={onDelete} isDraggable={true} />
+    <div ref={setNodeRef} style={style} className="w-full touch-none mb-3">
+      <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing">
+        <TaskCard task={task} onEdit={onEdit} onDelete={onDelete} isDraggable={true} />
+      </div>
     </div>
   );
 };
 
 // Kanban Column with Droppable Support
-const KanbanColumn = ({ title, tasks, onEdit, onDelete, columnId }: KanbanColumnProps) => {
-  const { setNodeRef } = useDroppable({ id: columnId });
-
+const KanbanColumn = ({ title, tasks, onEdit, onDelete, columnId, columnIndex }: KanbanColumnProps) => {
   return (
-    <Card ref={setNodeRef} className="flex-1 min-w-[280px] max-w-[350px] bg-secondary/30 h-fit" id={columnId}>
+    <Card className="flex-1 min-w-[280px] max-w-[350px] bg-secondary/30 h-fit" id={columnId}>
       <CardHeader className="bg-muted/30 pb-2">
         <CardTitle className="text-md font-medium">{title} ({tasks.length})</CardTitle>
       </CardHeader>
       <CardContent className="p-2">
         <ScrollArea className="h-[calc(100vh-300px)] pr-2">
-          <div className="w-full space-y-3 pb-3">
-            {tasks.map(task => (
-              <SortableContext key={task.id} items={[task.id]} strategy={verticalListSortingStrategy}>
-                <SortableTaskCard task={task} onEdit={onEdit} onDelete={onDelete} />
-              </SortableContext>
-            ))}
-          </div>
+          <SortableContext items={tasks.map(task => task.id)} strategy={verticalListSortingStrategy}>
+            <div className="w-full space-y-0 pb-3">
+              {tasks.map(task => (
+                <SortableTaskCard 
+                  key={task.id} 
+                  task={task} 
+                  onEdit={onEdit} 
+                  onDelete={onDelete} 
+                />
+              ))}
+            </div>
+          </SortableContext>
         </ScrollArea>
       </CardContent>
     </Card>
@@ -89,9 +110,16 @@ const KanbanBoard = forwardRef(({ sprintId }: KanbanBoardProps, ref) => {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [currentOverId, setCurrentOverId] = useState<string | null>(null);
 
+  // Configure sensors with better touch support
   const sensors = useSensors(
     useSensor(PointerSensor, {
-      activationConstraint: { distance: 8 }, // Slightly increased for better response
+      activationConstraint: { distance: 8 },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 250, tolerance: 5 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
     })
   );
 
@@ -147,7 +175,6 @@ const KanbanBoard = forwardRef(({ sprintId }: KanbanBoardProps, ref) => {
 
   const handleDragOver = (event: DragOverEvent) => {
     const { over } = event;
-    // Update current column being dragged over for visual feedback if needed
     if (over) {
       setCurrentOverId(over.id as string);
     }
@@ -159,7 +186,7 @@ const KanbanBoard = forwardRef(({ sprintId }: KanbanBoardProps, ref) => {
     setActiveId(null);
     setCurrentOverId(null);
 
-    if (!over) return;
+    if (!over || !active) return;
 
     const taskId = active.id as string;
     const task = tasks.find(t => t.id === taskId);
@@ -172,52 +199,67 @@ const KanbanBoard = forwardRef(({ sprintId }: KanbanBoardProps, ref) => {
       "column-done": "done",
     };
 
-    const columnId = over.id as string;
-    const newStatus = newStatusMap[columnId];
+    // Determine if we're dropping on a column or another task
+    const overId = over.id as string;
+    const isColumn = overId.startsWith("column-");
     
-    if (!newStatus || newStatus === task.status) return;
+    if (isColumn) {
+      // Dropping on a column
+      const newStatus = newStatusMap[overId];
+      if (!newStatus || newStatus === task.status) return;
 
-    console.log(`Moving task ${taskId} from ${task.status} to ${newStatus}`);
-
-    try {
-      // Set completedAt based on the new status
-      let completedAt = task.completedAt;
-      if (newStatus === 'done' && !completedAt) {
-        completedAt = new Date().toISOString();
-      } else if (newStatus !== 'done' && completedAt) {
-        completedAt = undefined;
+      try {
+        // Set completedAt based on the new status
+        let completedAt = task.completedAt;
+        if (newStatus === 'done' && !completedAt) {
+          completedAt = new Date().toISOString();
+        } else if (newStatus !== 'done' && completedAt) {
+          completedAt = undefined;
+        }
+        
+        // Optimistically update UI first
+        setTasks(prevTasks =>
+          prevTasks.map(t => (t.id === taskId ? { ...t, status: newStatus, completedAt } : t))
+        );
+        
+        // Then update the database
+        const updatedTask: Task & { user_id: string } = { 
+          ...task, 
+          status: newStatus, 
+          completedAt,
+          user_id: user.id 
+        };
+        
+        await updateTask(updatedTask);
+        
+        toast({ 
+          title: "Task updated", 
+          description: `Task moved to ${newStatus.replace("-", " ")}` 
+        });
+      } catch (error) {
+        console.error("Failed to update task status:", error);
+        // Revert the optimistic update on failure
+        setTasks(prevTasks =>
+          prevTasks.map(t => (t.id === taskId ? { ...task } : t))
+        );
+        toast({ 
+          title: "Error", 
+          description: "Failed to update task status", 
+          variant: "destructive" 
+        });
       }
+    } else {
+      // Dropping on another task - reordering within the same column
+      const overTask = tasks.find(t => t.id === overId);
+      if (!overTask || task.status !== overTask.status) return;
       
-      // Optimistically update UI first
-      setTasks(prevTasks =>
-        prevTasks.map(t => (t.id === taskId ? { ...t, status: newStatus, completedAt } : t))
-      );
+      // Just visual reordering for now - no backend persistence of order
+      const oldIndex = tasks.findIndex(t => t.id === taskId);
+      const newIndex = tasks.findIndex(t => t.id === overId);
       
-      // Then update the database
-      const updatedTask: Task & { user_id: string } = { 
-        ...task, 
-        status: newStatus, 
-        completedAt,
-        user_id: user.id 
-      };
-      
-      await updateTask(updatedTask);
-      
-      toast({ 
-        title: "Task updated", 
-        description: `Task moved to ${newStatus.replace("-", " ")}` 
-      });
-    } catch (error) {
-      console.error("Failed to update task status:", error);
-      // Revert the optimistic update on failure
-      setTasks(prevTasks =>
-        prevTasks.map(t => (t.id === taskId ? { ...task } : t))
-      );
-      toast({ 
-        title: "Error", 
-        description: "Failed to update task status", 
-        variant: "destructive" 
-      });
+      if (oldIndex !== -1 && newIndex !== -1) {
+        setTasks(prevTasks => arrayMove(prevTasks, oldIndex, newIndex));
+      }
     }
   };
 
@@ -241,10 +283,38 @@ const KanbanBoard = forwardRef(({ sprintId }: KanbanBoardProps, ref) => {
         sensors={sensors}
       >
         <div className="flex gap-4 overflow-x-auto pb-6 snap-x">
-          <KanbanColumn title="To Do" tasks={tasks.filter(t => t.status === "todo")} onEdit={handleEditTask} onDelete={handleDeleteTask} columnId="column-todo" />
-          <KanbanColumn title="In Progress" tasks={tasks.filter(t => t.status === "in-progress")} onEdit={handleEditTask} onDelete={handleDeleteTask} columnId="column-in-progress" />
-          <KanbanColumn title="In Review" tasks={tasks.filter(t => t.status === "in-review")} onEdit={handleEditTask} onDelete={handleDeleteTask} columnId="column-in-review" />
-          <KanbanColumn title="Done" tasks={tasks.filter(t => t.status === "done")} onEdit={handleEditTask} onDelete={handleDeleteTask} columnId="column-done" />
+          <KanbanColumn 
+            title="To Do" 
+            tasks={tasks.filter(t => t.status === "todo")} 
+            onEdit={handleEditTask} 
+            onDelete={handleDeleteTask} 
+            columnId="column-todo"
+            columnIndex={0} 
+          />
+          <KanbanColumn 
+            title="In Progress" 
+            tasks={tasks.filter(t => t.status === "in-progress")} 
+            onEdit={handleEditTask} 
+            onDelete={handleDeleteTask} 
+            columnId="column-in-progress"
+            columnIndex={1} 
+          />
+          <KanbanColumn 
+            title="In Review" 
+            tasks={tasks.filter(t => t.status === "in-review")} 
+            onEdit={handleEditTask} 
+            onDelete={handleDeleteTask} 
+            columnId="column-in-review" 
+            columnIndex={2}
+          />
+          <KanbanColumn 
+            title="Done" 
+            tasks={tasks.filter(t => t.status === "done")} 
+            onEdit={handleEditTask} 
+            onDelete={handleDeleteTask} 
+            columnId="column-done" 
+            columnIndex={3}
+          />
         </div>
 
         <DragOverlay>
