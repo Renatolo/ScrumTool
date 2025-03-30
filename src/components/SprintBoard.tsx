@@ -12,8 +12,8 @@ import {
   useSensors, 
   useSensor, 
   PointerSensor,
-  KeyboardSensor,
   TouchSensor,
+  KeyboardSensor,
   DragEndEvent,
   DragOverEvent,
   DragStartEvent
@@ -33,13 +33,13 @@ const SprintBoard = () => {
   const kanbanBoardRef = useRef<any>(null);
   const [currentDragOverColumn, setCurrentDragOverColumn] = useState<string | null>(null);
 
-  // Configure better sensors for improved drag and drop experience
+  // Configure sensors with better activation constraints
   const sensors = useSensors(
     useSensor(PointerSensor, {
-      activationConstraint: { distance: 5 }, // Slightly lower threshold to make dragging easier to initiate
+      activationConstraint: { distance: 3 }, // Lower threshold for easier drag activation
     }),
     useSensor(TouchSensor, {
-      activationConstraint: { delay: 200, tolerance: 5 }, // Slightly lower delay for touch
+      activationConstraint: { delay: 150, tolerance: 5 }, // Lower delay for touch
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
@@ -80,6 +80,8 @@ const SprintBoard = () => {
 
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
+    console.log("Drag started:", active);
+    
     if (active.data?.current?.task) {
       setActiveTask(active.data.current.task);
     }
@@ -89,6 +91,8 @@ const SprintBoard = () => {
 
   const handleDragOver = (event: DragOverEvent) => {
     const { over } = event;
+    console.log("Drag over:", over?.id);
+    
     if (over && over.id.toString().startsWith('column-')) {
       setCurrentDragOverColumn(over.id.toString());
       
@@ -107,6 +111,7 @@ const SprintBoard = () => {
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
+    console.log("Drag ended:", event);
     setActiveTask(null);
     const { active, over } = event;
     setCurrentDragOverColumn(null);
@@ -115,6 +120,8 @@ const SprintBoard = () => {
     document.querySelectorAll('[data-column-id]').forEach(el => {
       el.classList.remove('ring-2', 'ring-primary', 'ring-opacity-70');
     });
+    
+    document.body.classList.remove('is-dragging-task');
     
     if (!active || !over || !user) return;
     
@@ -254,9 +261,9 @@ const SprintBoard = () => {
   return (
     <DndContext
       sensors={sensors}
-      onDragEnd={handleDragEnd}
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
+      onDragEnd={handleDragEnd}
       onDragCancel={handleDragCancel}
     >
       <div className="container mx-auto p-4 max-w-full">
@@ -266,7 +273,7 @@ const SprintBoard = () => {
         
         <DragOverlay>
           {activeTask && (
-            <div className="p-3 bg-white border rounded-md shadow-lg max-w-[250px] opacity-80">
+            <div className="p-1 bg-white border rounded-md shadow-lg w-[300px] opacity-90">
               <TaskCard 
                 task={activeTask} 
                 onEdit={() => {}} 

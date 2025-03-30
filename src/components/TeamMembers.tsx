@@ -117,7 +117,7 @@ const TeamMembers = ({ projectId, project, currentUserId, onMemberAdded }: TeamM
           onClose={() => setShowEditRoleDialog(false)}
           member={selectedMember}
           projectId={projectId}
-          onUpdate={handleRoleUpdated}
+          onSuccess={handleRoleUpdated}
         />
       )}
     </div>

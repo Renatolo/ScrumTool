@@ -18,8 +18,8 @@ import {
   useSensor, 
   useSensors, 
   PointerSensor,
-  KeyboardSensor,
-  TouchSensor
+  TouchSensor,
+  KeyboardSensor
 } from "@dnd-kit/core";
 import {
   SortableContext, 
@@ -60,7 +60,6 @@ const SortableTaskCard = ({ task, onEdit, onDelete }: { task: Task; onEdit: (tas
     zIndex: isDragging ? 10 : 1,
     width: '100%',
     position: isDragging ? 'relative' : 'static',
-    cursor: 'grab',
   } as React.CSSProperties;
 
   return (
@@ -84,7 +83,6 @@ const KanbanColumn = ({ title, tasks, onEdit, onDelete, columnId, columnIndex }:
     <Card 
       className="flex-1 min-w-[280px] max-w-[350px] bg-secondary/30 h-fit" 
       id={columnId} 
-      data-droppable="true"
       data-column-id={columnId}
     >
       <CardHeader className="bg-muted/30 pb-2">
@@ -93,7 +91,7 @@ const KanbanColumn = ({ title, tasks, onEdit, onDelete, columnId, columnIndex }:
       <CardContent className="p-2 min-h-[100px]">
         <ScrollArea className="h-[calc(100vh-300px)] pr-2">
           <SortableContext items={sortedTasks.map(task => task.id)} strategy={verticalListSortingStrategy}>
-            <div className="w-full space-y-0 pb-3" data-column-drop-container={columnId}>
+            <div className="w-full space-y-0 pb-3">
               {sortedTasks.map(task => (
                 <SortableTaskCard 
                   key={task.id} 
@@ -120,15 +118,14 @@ const KanbanBoard = forwardRef(({ sprintId }: KanbanBoardProps, ref) => {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [currentOverId, setCurrentOverId] = useState<string | null>(null);
 
   // Configure sensors with better touch support
   const sensors = useSensors(
     useSensor(PointerSensor, {
-      activationConstraint: { distance: 8 },
+      activationConstraint: { distance: 3 }, // Lower threshold for easier drag initiation
     }),
     useSensor(TouchSensor, {
-      activationConstraint: { delay: 250, tolerance: 5 },
+      activationConstraint: { delay: 150, tolerance: 5 }, // Lower delay for better touch responsiveness
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
@@ -179,7 +176,7 @@ const KanbanBoard = forwardRef(({ sprintId }: KanbanBoardProps, ref) => {
   };
 
   const handleDragStart = (event: DragStartEvent) => {
-    console.log("Drag started:", event);
+    console.log("KanbanBoard: Drag started:", event);
     const taskId = event.active.id as string;
     const foundTask = tasks.find(t => t.id === taskId);
     setActiveId(taskId);
@@ -190,32 +187,27 @@ const KanbanBoard = forwardRef(({ sprintId }: KanbanBoardProps, ref) => {
   };
 
   const handleDragOver = (event: DragOverEvent) => {
-    console.log("Drag over:", event);
-    const { over } = event;
-    if (over) {
-      setCurrentOverId(over.id as string);
-      
-      // Highlight the column when dragging over it
-      if (over.id.toString().startsWith('column-')) {
-        const columnId = over.id.toString();
-        const columnElements = document.querySelectorAll('[data-column-id]');
-        columnElements.forEach(el => {
-          if (el.getAttribute('data-column-id') === columnId) {
-            el.classList.add('ring-2', 'ring-primary', 'ring-opacity-70');
-          } else {
-            el.classList.remove('ring-2', 'ring-primary', 'ring-opacity-70');
-          }
-        });
-      }
+    console.log("KanbanBoard: Drag over:", event.over?.id);
+    
+    // Highlight the column when dragging over it
+    if (event.over && event.over.id.toString().startsWith('column-')) {
+      const columnId = event.over.id.toString();
+      const columnElements = document.querySelectorAll('[data-column-id]');
+      columnElements.forEach(el => {
+        if (el.getAttribute('data-column-id') === columnId) {
+          el.classList.add('ring-2', 'ring-primary', 'ring-opacity-70');
+        } else {
+          el.classList.remove('ring-2', 'ring-primary', 'ring-opacity-70');
+        }
+      });
     }
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
-    console.log("Drag ended:", event);
+    console.log("KanbanBoard: Drag ended:", event);
     const { active, over } = event;
     setActiveTask(null);
     setActiveId(null);
-    setCurrentOverId(null);
     
     // Remove dragging class and column highlights
     document.body.classList.remove('is-dragging-task');
@@ -355,7 +347,7 @@ const KanbanBoard = forwardRef(({ sprintId }: KanbanBoardProps, ref) => {
 
         <DragOverlay>
           {activeTask && (
-            <div className="w-[300px] opacity-80 shadow-lg">
+            <div className="w-[300px] opacity-90 shadow-lg">
               <TaskCard task={activeTask} onEdit={() => {}} onDelete={() => {}} isDraggable={false} />
             </div>
           )}
