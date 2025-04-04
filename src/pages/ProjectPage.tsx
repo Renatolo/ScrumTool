@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { Project } from "@/types/project";
@@ -22,6 +23,7 @@ import BurndownChart from "@/components/BurndownChart";
 import MeetingsList from "@/components/MeetingsList";
 import TeamMembers from "@/components/TeamMembers";
 import SprintList from "@/components/SprintList";
+import { Meeting } from "@/types/project";
 
 const ProjectPage = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -35,6 +37,7 @@ const ProjectPage = () => {
   const [isLoadingSprints, setIsLoadingSprints] = useState(true);
   const [showCreateSprintDialog, setShowCreateSprintDialog] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
+  const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
 
   useEffect(() => {
     if (!projectId || !user) return;
@@ -108,6 +111,12 @@ const ProjectPage = () => {
     } catch (error) {
       console.error("Error refreshing project:", error);
     }
+  };
+
+  // Handle meeting view in meetings tab
+  const handleViewMeetingInTab = (meeting: Meeting) => {
+    setSelectedMeeting(meeting);
+    setActiveTab("meetings");
   };
 
   if (isLoadingProject) {
@@ -213,7 +222,10 @@ const ProjectPage = () => {
                 )}
               </div>
               
-              <MeetingsList projectId={projectId!} />
+              <MeetingsList 
+                projectId={projectId!} 
+                onViewMeetingInTab={handleViewMeetingInTab} 
+              />
             </div>
           </div>
         </TabsContent>
@@ -247,7 +259,11 @@ const ProjectPage = () => {
 
         {/* New Meetings Tab */}
         <TabsContent value="meetings" className="mt-6">
-          <MeetingsList projectId={projectId!} isTab={true} />
+          <MeetingsList 
+            projectId={projectId!} 
+            isTab={true} 
+            onViewMeetingInTab={handleViewMeetingInTab}
+          />
         </TabsContent>
 
         {/* Team Tab */}

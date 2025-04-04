@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Meeting } from "@/types/project";
 import { Button } from "@/components/ui/button";
@@ -15,9 +14,10 @@ import { useMeetings } from "@/hooks/useMeetings";
 interface MeetingsListProps {
   projectId: string;
   isTab?: boolean;
+  onViewMeetingInTab?: (meeting: Meeting) => void;
 }
 
-const MeetingsList = ({ projectId, isTab = false }: MeetingsListProps) => {
+const MeetingsList = ({ projectId, isTab = false, onViewMeetingInTab }: MeetingsListProps) => {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [editMeeting, setEditMeeting] = useState<Meeting | null>(null);
   const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
@@ -32,7 +32,15 @@ const MeetingsList = ({ projectId, isTab = false }: MeetingsListProps) => {
   };
 
   const handleViewMeeting = (meeting: Meeting) => {
-    setSelectedMeeting(meeting);
+    // If we're in the tab view, display the detail directly
+    if (isTab) {
+      setSelectedMeeting(meeting);
+    } else {
+      // If we're in the overview, redirect to the meetings tab
+      if (onViewMeetingInTab) {
+        onViewMeetingInTab(meeting);
+      }
+    }
   };
 
   if (loading) {
@@ -44,7 +52,7 @@ const MeetingsList = ({ projectId, isTab = false }: MeetingsListProps) => {
   }
 
   // If a meeting is selected, show its details
-  if (selectedMeeting) {
+  if (selectedMeeting && isTab) {
     return (
       <MeetingDetail
         meeting={selectedMeeting}
@@ -65,24 +73,15 @@ const MeetingsList = ({ projectId, isTab = false }: MeetingsListProps) => {
     return (
       <div className="space-y-4">
         <div className="flex justify-between items-center">
-          <h2 className="text-xl font-semibold">Team Meetings</h2>
-          <Button onClick={handleCreateMeeting}>
-            <Plus className="mr-2 h-4 w-4" />
-            Create Meeting
-          </Button>
+          <h2 className="text-xl font-semibold">Today's Meetings</h2>
+          {/* Create button removed from overview */}
         </div>
         
         {allMeetingsEmpty ? (
           <div className="text-center py-10">
             <Calendar className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-lg font-medium">No meetings scheduled</h3>
-            <p className="mt-1 text-sm text-gray-500">Get started by creating a new meeting.</p>
-            <div className="mt-6">
-              <Button onClick={handleCreateMeeting}>
-                <Plus className="mr-2 h-4 w-4" />
-                Create Meeting
-              </Button>
-            </div>
+            <h3 className="mt-2 text-lg font-medium">No meetings scheduled for today</h3>
+            <p className="mt-1 text-sm text-gray-500">Check the Meetings tab to see all meetings.</p>
           </div>
         ) : (
           <div>
@@ -108,6 +107,7 @@ const MeetingsList = ({ projectId, isTab = false }: MeetingsListProps) => {
           </div>
         )}
         
+        {/* Keep existing dialogs */}
         <CreateMeetingDialog
           open={showCreateDialog}
           onClose={() => setShowCreateDialog(false)}
@@ -153,8 +153,16 @@ const MeetingsList = ({ projectId, isTab = false }: MeetingsListProps) => {
       ) : (
         <Tabs defaultValue="upcoming" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="upcoming">Upcoming Meetings</TabsTrigger>
-            <TabsTrigger value="past">Past Meetings</TabsTrigger>
+            <TabsTrigger 
+              value="upcoming"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              Upcoming Meetings
+            </TabsTrigger>
+            <TabsTrigger 
+              value="past"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              Past Meetings
+            </TabsTrigger>
           </TabsList>
           
           <TabsContent value="upcoming">
