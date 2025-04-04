@@ -4,6 +4,7 @@ import { Meeting } from "@/types/project";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Calendar, Clock } from "lucide-react";
+import { format } from "date-fns";
 import CreateMeetingDialog from "./CreateMeetingDialog";
 import EditMeetingDialog from "./EditMeetingDialog";
 import MeetingsSection from "./meetings/MeetingsSection";

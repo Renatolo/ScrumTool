@@ -4,20 +4,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
 import { FileText, User, Clock } from "lucide-react";
-
-interface MeetingNote {
-  id: string;
-  meeting_id: string;
-  content: string;
-  created_at: string;
-  created_by: string;
-  author_name?: string;
-}
+import { MeetingNote } from "@/types/project";
 
 interface MeetingNotesListProps {
   meetingId: string;
@@ -40,23 +31,24 @@ const MeetingNotesList = ({ meetingId, meetingName }: MeetingNotesListProps) => 
       try {
         setLoading(true);
         
-        // Fetch notes and join with profiles to get author names
-        const { data: notesData, error } = await supabase
+        // Simple query to get notes for this meeting
+        const { data, error } = await supabase
           .from("meeting_notes")
-          .select(`
-            *,
-            profiles:created_by (name)
-          `)
+          .select("*, profiles:created_by(name)")
           .eq("meeting_id", meetingId)
           .order("created_at", { ascending: false });
           
         if (error) throw error;
         
         // Transform data to include author_name
-        const formattedNotes = (notesData || []).map((note: any) => ({
-          ...note,
+        const formattedNotes = data?.map((note: any) => ({
+          id: note.id,
+          meeting_id: note.meeting_id,
+          content: note.content,
+          created_at: note.created_at,
+          created_by: note.created_by,
           author_name: note.profiles?.name || "Unknown User"
-        }));
+        })) || [];
         
         setNotes(formattedNotes);
       } catch (error) {
@@ -81,6 +73,7 @@ const MeetingNotesList = ({ meetingId, meetingName }: MeetingNotesListProps) => 
     try {
       setSubmitting(true);
       
+      // Insert the new note
       const { data, error } = await supabase
         .from("meeting_notes")
         .insert({
@@ -88,17 +81,18 @@ const MeetingNotesList = ({ meetingId, meetingName }: MeetingNotesListProps) => 
           content: newNote.trim(),
           created_by: user.id,
         })
-        .select(`
-          *,
-          profiles:created_by (name)
-        `)
+        .select("*, profiles:created_by(name)")
         .single();
         
       if (error) throw error;
       
       // Format the new note with author name
-      const newNoteWithAuthor = {
-        ...data,
+      const newNoteWithAuthor: MeetingNote = {
+        id: data.id,
+        meeting_id: data.meeting_id,
+        content: data.content,
+        created_at: data.created_at,
+        created_by: data.created_by,
         author_name: data.profiles?.name || "Unknown User"
       };
       

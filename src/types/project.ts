@@ -26,4 +26,5 @@ export interface MeetingNote {
     content: string;
     created_at: string;
     created_by: string;
+    author_name?: string;
 }

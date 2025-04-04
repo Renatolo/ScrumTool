@@ -47,15 +47,15 @@ export const useMeetings = (projectId: string) => {
     
     try {
       // First check if there are any notes for this meeting
-      const { data: notes, error: notesError } = await supabase
+      const { count, error: countError } = await supabase
         .from("meeting_notes")
-        .select("id")
+        .select("*", { count: "exact", head: true })
         .eq("meeting_id", meetingId);
         
-      if (notesError) throw notesError;
+      if (countError) throw countError;
       
       // If there are notes, delete them first
-      if (notes && notes.length > 0) {
+      if (count && count > 0) {
         const { error: deleteNotesError } = await supabase
           .from("meeting_notes")
           .delete()
