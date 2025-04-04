@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Meeting } from "@/types/project";
-import { supabase } from "@/integrations/supabase/client";
+import { getMeetings, deleteMeeting as deleteMeetingFromDB } from "@/lib/supabase/meetings";
 import { format } from "date-fns";
 
 export const useMeetings = (projectId: string) => {
@@ -19,14 +19,8 @@ export const useMeetings = (projectId: string) => {
       
       try {
         setLoading(true);
-        const { data, error } = await supabase
-          .from("meetings")
-          .select("*")
-          .eq("project_id", projectId)
-          .order("date", { ascending: true });
-          
-        if (error) throw error;
-        setMeetings(data || []);
+        const data = await getMeetings(projectId);
+        setMeetings(data);
       } catch (error) {
         console.error("Error fetching meetings:", error);
         toast({
@@ -46,21 +40,7 @@ export const useMeetings = (projectId: string) => {
     if (!user) return;
     
     try {
-      // Check if we need to delete notes first
-      const { count } = await supabase
-        .from("meetings")
-        .select("id", { count: "exact", head: true })
-        .eq("id", meetingId);
-      
-      if (count && count > 0) {
-        // Meeting exists, try to delete it
-        const { error } = await supabase
-          .from("meetings")
-          .delete()
-          .eq("id", meetingId);
-          
-        if (error) throw error;
-      }
+      await deleteMeetingFromDB(meetingId);
       
       setMeetings(prevMeetings => prevMeetings.filter(meeting => meeting.id !== meetingId));
       toast({

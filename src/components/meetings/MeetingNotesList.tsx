@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";
 import { FileText, User, Clock } from "lucide-react";
 import { MeetingNote } from "@/types/project";
+import { getMeetingNotes, addMeetingNote } from "@/lib/supabase/meetings";
 
 interface MeetingNotesListProps {
   meetingId: string;
@@ -23,7 +24,7 @@ const MeetingNotesList = ({ meetingId, meetingName }: MeetingNotesListProps) => 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   
-  // Fetch meeting notes - using a more direct approach with raw SQL
+  // Fetch meeting notes 
   useEffect(() => {
     const fetchNotes = async () => {
       if (!meetingId) return;
@@ -31,51 +32,8 @@ const MeetingNotesList = ({ meetingId, meetingName }: MeetingNotesListProps) => 
       try {
         setLoading(true);
         
-        // Use SQL to join meeting_notes and profiles since the meeting_notes table isn't in the type definition
-        const { data, error } = await supabase
-          .rpc('get_meeting_notes_with_authors', { meeting_id_param: meetingId })
-          .select('*');
-        
-        if (error) {
-          console.error("RPC error:", error);
-          // Fallback to basic query without join
-          const { data: basicData, error: basicError } = await supabase
-            .from('meetings')
-            .select('id')
-            .eq('id', meetingId)
-            .then(async () => {
-              return await supabase.from('meeting_notes_view')
-                .select('*')
-                .eq('meeting_id', meetingId)
-                .order('created_at', { ascending: false });
-            });
-            
-          if (basicError) throw basicError;
-          
-          // Map the data to our MeetingNote interface
-          const formattedNotes: MeetingNote[] = (basicData || []).map((note: any) => ({
-            id: note.id,
-            meeting_id: note.meeting_id,
-            content: note.content,
-            created_at: note.created_at,
-            created_by: note.created_by,
-            author_name: note.author_name || "Unknown User"
-          }));
-          
-          setNotes(formattedNotes);
-        } else {
-          // Format data from RPC call
-          const formattedNotes = (data || []).map((note: any) => ({
-            id: note.id,
-            meeting_id: note.meeting_id,
-            content: note.content,
-            created_at: note.created_at,
-            created_by: note.created_by,
-            author_name: note.author_name || "Unknown User"
-          }));
-          
-          setNotes(formattedNotes);
-        }
+        const notesData = await getMeetingNotes(meetingId);
+        setNotes(notesData);
       } catch (error) {
         console.error("Error fetching meeting notes:", error);
         toast({
@@ -91,41 +49,21 @@ const MeetingNotesList = ({ meetingId, meetingName }: MeetingNotesListProps) => 
     fetchNotes();
   }, [meetingId, toast]);
 
-  // Add a new note - using direct SQL approach
+  // Add a new note
   const handleAddNote = async () => {
     if (!user || !newNote.trim()) return;
     
     try {
       setSubmitting(true);
       
-      // Use raw insert to avoid type issues
-      const { data, error } = await supabase
-        .from('meetings')  // First verify the meeting exists
-        .select('id')
-        .eq('id', meetingId)
-        .then(async () => {
-          // Then insert the note
-          return await supabase.rpc('add_meeting_note', {
-            meeting_id_param: meetingId,
-            content_param: newNote.trim(),
-            user_id_param: user.id
-          });
-        });
-        
-      if (error) throw error;
-      
-      // Add new note to state - use a structured format matching our interface
-      const newNoteObj: MeetingNote = {
-        id: data?.id || `temp-${Date.now()}`,
-        meeting_id: meetingId,
-        content: newNote.trim(),
-        created_at: new Date().toISOString(),
-        created_by: user.id,
-        author_name: user?.user_metadata?.name || "You"
-      };
+      const newNoteData = await addMeetingNote(
+        meetingId,
+        newNote.trim(), 
+        user.id
+      );
       
       // Add the new note to the list
-      setNotes(prevNotes => [newNoteObj, ...prevNotes]);
+      setNotes(prevNotes => [newNoteData, ...prevNotes]);
       
       // Clear the input
       setNewNote("");
@@ -193,7 +131,7 @@ const MeetingNotesList = ({ meetingId, meetingName }: MeetingNotesListProps) => 
                 <div className="flex justify-between items-start">
                   <div className="flex items-center">
                     <User className="h-4 w-4 mr-2 text-gray-500" />
-                    <span className="font-medium">{note.author_name}</span>
+                    <span className="font-medium">{note.author_name || "User"}</span>
                   </div>
                   <div className="flex items-center text-sm text-gray-500">
                     <Clock className="h-3 w-3 mr-1" />
