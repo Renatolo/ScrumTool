@@ -84,6 +84,7 @@ const KanbanColumn = ({ title, tasks, onEdit, onDelete, columnId, columnIndex }:
       className="flex-1 min-w-[280px] max-w-[350px] bg-secondary/30 h-fit" 
       id={columnId} 
       data-column-id={columnId}
+      data-droppable-column="true"
     >
       <CardHeader className="bg-muted/30 pb-2">
         <CardTitle className="text-md font-medium">{title} ({tasks.length})</CardTitle>
@@ -118,6 +119,7 @@ const KanbanBoard = forwardRef(({ sprintId }: KanbanBoardProps, ref) => {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [hoveredColumnId, setHoveredColumnId] = useState<string | null>(null);
 
   // Configure sensors with better touch support
   const sensors = useSensors(
@@ -187,31 +189,68 @@ const KanbanBoard = forwardRef(({ sprintId }: KanbanBoardProps, ref) => {
   };
 
   const handleDragOver = (event: DragOverEvent) => {
-    console.log("KanbanBoard: Drag over:", event.over?.id);
+    const { active, over } = event;
     
-    // Highlight the column when dragging over it
-    if (event.over && event.over.id.toString().startsWith('column-')) {
-      const columnId = event.over.id.toString();
-      const columnElements = document.querySelectorAll('[data-column-id]');
-      columnElements.forEach(el => {
-        if (el.getAttribute('data-column-id') === columnId) {
-          el.classList.add('ring-2', 'ring-primary', 'ring-opacity-70');
+    // If no over element, clear the highlighted column
+    if (!over) {
+      setHoveredColumnId(null);
+      return;
+    }
+    
+    const activeId = active.id.toString();
+    const overId = over.id.toString();
+    
+    // Check if we're hovering over a column
+    const isColumnHover = over.data.current?.droppableColumn || overId.startsWith('column-');
+    
+    // Find the column containing the over element if it's a task
+    const columnElements = document.querySelectorAll('[data-droppable-column="true"]');
+    
+    // Clear previous highlight
+    columnElements.forEach(el => {
+      el.classList.remove('ring-2', 'ring-primary', 'ring-opacity-70');
+    });
+    
+    // If hovering directly over a column
+    if (isColumnHover) {
+      // Highlight the column we're over
+      const columnId = overId;
+      setHoveredColumnId(columnId);
+      
+      const columnElement = document.getElementById(columnId);
+      if (columnElement) {
+        columnElement.classList.add('ring-2', 'ring-primary', 'ring-opacity-70');
+      }
+    } else {
+      // If hovering over a task, find which column contains this task
+      const taskElement = document.getElementById(overId) || document.querySelector(`[data-id="${overId}"]`);
+      if (taskElement) {
+        // Find the parent column
+        const columnElement = taskElement.closest('[data-droppable-column="true"]');
+        if (columnElement) {
+          const columnId = columnElement.id;
+          setHoveredColumnId(columnId);
+          columnElement.classList.add('ring-2', 'ring-primary', 'ring-opacity-70');
         } else {
-          el.classList.remove('ring-2', 'ring-primary', 'ring-opacity-70');
+          setHoveredColumnId(null);
         }
-      });
+      } else {
+        setHoveredColumnId(null);
+      }
     }
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
     console.log("KanbanBoard: Drag ended:", event);
     const { active, over } = event;
+    
     setActiveTask(null);
     setActiveId(null);
+    setHoveredColumnId(null);
     
     // Remove dragging class and column highlights
     document.body.classList.remove('is-dragging-task');
-    document.querySelectorAll('[data-column-id]').forEach(el => {
+    document.querySelectorAll('[data-droppable-column="true"]').forEach(el => {
       el.classList.remove('ring-2', 'ring-primary', 'ring-opacity-70');
     });
 
@@ -223,71 +262,91 @@ const KanbanBoard = forwardRef(({ sprintId }: KanbanBoardProps, ref) => {
 
     // Handle dropping on a column
     const overId = over.id.toString();
-    const isColumn = overId.startsWith("column-");
+    const activeId = active.id.toString();
     
-    if (isColumn) {
-      const newStatusMap: Record<string, Task["status"]> = {
-        "column-todo": "todo",
-        "column-in-progress": "in-progress",
-        "column-in-review": "in-review",
-        "column-done": "done",
-      };
+    // First check if we're dropping on another task
+    if (overId !== activeId) {
+      const isOverATask = !overId.startsWith("column-");
       
-      const newStatus = newStatusMap[overId];
-      if (!newStatus || newStatus === task.status) return;
-
-      try {
-        // Set completedAt based on the new status
-        let completedAt = task.completedAt;
-        if (newStatus === 'done' && !completedAt) {
-          completedAt = new Date().toISOString();
-        } else if (newStatus !== 'done' && completedAt) {
-          completedAt = undefined;
+      if (isOverATask) {
+        // Get the task we're dropping onto
+        const overTask = tasks.find(t => t.id === overId);
+        if (overTask) {
+          // We're dropping onto another task in the same column - just reorder
+          if (task.status === overTask.status) {
+            const oldIndex = tasks.findIndex(t => t.id === taskId);
+            const newIndex = tasks.findIndex(t => t.id === overId);
+            
+            if (oldIndex !== -1 && newIndex !== -1) {
+              // This just updates the UI, not the database order
+              setTasks(prevTasks => arrayMove(prevTasks, oldIndex, newIndex));
+            }
+            return;
+          } else {
+            // We're dropping onto a task in another column - move to that column
+            const newStatus = overTask.status;
+            await moveTaskToNewStatus(task, newStatus);
+          }
         }
-        
-        // Optimistically update UI first
-        setTasks(prevTasks =>
-          prevTasks.map(t => (t.id === taskId ? { ...t, status: newStatus, completedAt } : t))
-        );
-        
-        // Then update the database
-        const updatedTask: Task & { user_id: string } = { 
-          ...task, 
-          status: newStatus, 
-          completedAt,
-          user_id: user.id 
+      } else {
+        // We're dropping directly onto a column - identify the column from the id
+        const newStatusMap: Record<string, Task["status"]> = {
+          "column-todo": "todo",
+          "column-in-progress": "in-progress",
+          "column-in-review": "in-review",
+          "column-done": "done",
         };
         
-        await updateTask(updatedTask);
+        const newStatus = newStatusMap[overId];
+        if (!newStatus || newStatus === task.status) return;
         
-        toast({ 
-          title: "Task updated", 
-          description: `Task moved to ${newStatus.replace("-", " ")}` 
-        });
-      } catch (error) {
-        console.error("Failed to update task status:", error);
-        // Revert the optimistic update on failure
-        setTasks(prevTasks =>
-          prevTasks.map(t => (t.id === taskId ? { ...task } : t))
-        );
-        toast({ 
-          title: "Error", 
-          description: "Failed to update task status", 
-          variant: "destructive" 
-        });
+        await moveTaskToNewStatus(task, newStatus);
       }
-    } else {
-      // Dropping on another task - reordering within the same column
-      const overTask = tasks.find(t => t.id === overId);
-      if (!overTask || task.status !== overTask.status) return;
-      
-      // Just visual reordering for now - no backend persistence of order
-      const oldIndex = tasks.findIndex(t => t.id === taskId);
-      const newIndex = tasks.findIndex(t => t.id === overId);
-      
-      if (oldIndex !== -1 && newIndex !== -1) {
-        setTasks(prevTasks => arrayMove(prevTasks, oldIndex, newIndex));
+    }
+  };
+  
+  const moveTaskToNewStatus = async (task: Task, newStatus: Task["status"]) => {
+    if (!user || newStatus === task.status) return;
+    
+    try {
+      // Set completedAt based on the new status
+      let completedAt = task.completedAt;
+      if (newStatus === 'done' && !completedAt) {
+        completedAt = new Date().toISOString();
+      } else if (newStatus !== 'done' && completedAt) {
+        completedAt = undefined;
       }
+      
+      // Optimistically update UI first
+      setTasks(prevTasks =>
+        prevTasks.map(t => (t.id === task.id ? { ...t, status: newStatus, completedAt } : t))
+      );
+      
+      // Then update the database
+      const updatedTask: Task & { user_id: string } = { 
+        ...task, 
+        status: newStatus, 
+        completedAt,
+        user_id: user.id 
+      };
+      
+      await updateTask(updatedTask);
+      
+      toast({ 
+        title: "Task updated", 
+        description: `Task moved to ${newStatus.replace("-", " ")}` 
+      });
+    } catch (error) {
+      console.error("Failed to update task status:", error);
+      // Revert the optimistic update on failure
+      setTasks(prevTasks =>
+        prevTasks.map(t => (t.id === task.id ? { ...task } : t))
+      );
+      toast({ 
+        title: "Error", 
+        description: "Failed to update task status", 
+        variant: "destructive" 
+      });
     }
   };
 
