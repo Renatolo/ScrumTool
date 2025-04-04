@@ -12,9 +12,11 @@ import {
   DndContext, 
   DragEndEvent, 
   closestCenter, 
+  rectIntersection, 
   DragStartEvent, 
   DragOverEvent,
-  DragOverlay, 
+  DragOverlay,
+  useDroppable,  
   useSensor, 
   useSensors, 
   PointerSensor,
@@ -42,6 +44,22 @@ interface KanbanColumnProps {
 interface KanbanBoardProps {
   sprintId: string;
 }
+
+const DroppableColumn = ({ id, children }: { id: string; children: React.ReactNode }) => {
+  const { setNodeRef } = useDroppable({
+    id,
+    data: {
+      type: "column",
+      droppableColumn: true,
+    },
+  });
+
+  return (
+    <div ref={setNodeRef} id={id} data-column-id={id} data-droppable-column="true">
+      {children}
+    </div>
+  );
+};
 
 // Sortable Task Wrapper
 const SortableTaskCard = ({ task, onEdit, onDelete }: { task: Task; onEdit: (task: Task) => void; onDelete: (taskId: string) => void }) => {
@@ -91,18 +109,24 @@ const KanbanColumn = ({ title, tasks, onEdit, onDelete, columnId, columnIndex }:
       </CardHeader>
       <CardContent className="p-2 min-h-[100px]">
         <ScrollArea className="h-[calc(100vh-300px)] pr-2">
-          <SortableContext items={sortedTasks.map(task => task.id)} strategy={verticalListSortingStrategy}>
-            <div className="w-full space-y-0 pb-3">
-              {sortedTasks.map(task => (
+        <SortableContext items={sortedTasks.map(task => task.id)} strategy={verticalListSortingStrategy}>
+          <div className="w-full space-y-0 pb-3 min-h-[50px]">
+            {sortedTasks.length === 0 ? (
+              // Invisible placeholder to enable dropping into empty columns
+              <div className="h-[50px] w-[50px]" />
+            ) : (
+              sortedTasks.map(task => (
                 <SortableTaskCard 
                   key={task.id} 
                   task={task} 
                   onEdit={onEdit} 
                   onDelete={onDelete}
                 />
-              ))}
-            </div>
-          </SortableContext>
+              ))
+            )}
+          </div>
+        </SortableContext>
+
         </ScrollArea>
       </CardContent>
     </Card>
@@ -287,6 +311,8 @@ const KanbanBoard = forwardRef(({ sprintId }: KanbanBoardProps, ref) => {
             const newStatus = overTask.status;
             await moveTaskToNewStatus(task, newStatus);
           }
+
+          return;
         }
       } else {
         // We're dropping directly onto a column - identify the column from the id
@@ -302,6 +328,18 @@ const KanbanBoard = forwardRef(({ sprintId }: KanbanBoardProps, ref) => {
         
         await moveTaskToNewStatus(task, newStatus);
       }
+    } else {
+      // We're dropping directly onto a column - identify the column from the id
+      const newStatusMap: Record<string, Task["status"]> = {
+        "column-todo": "todo",
+        "column-in-progress": "in-progress",
+        "column-in-review": "in-review",
+        "column-done": "done",
+      };
+      
+      const newStatus = newStatusMap[overId];
+      if (!newStatus || newStatus === task.status) return;
+      await moveTaskToNewStatus(task, newStatus);
     }
   };
   
@@ -363,46 +401,58 @@ const KanbanBoard = forwardRef(({ sprintId }: KanbanBoardProps, ref) => {
       <h2 className="text-xl font-semibold mb-4">Sprint Board</h2>
 
       <DndContext 
-        collisionDetection={closestCenter} 
+        collisionDetection={rectIntersection} 
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
         sensors={sensors}
       >
         <div className="flex gap-4 overflow-x-auto pb-6 snap-x">
-          <KanbanColumn 
-            title="To Do" 
-            tasks={tasks.filter(t => t.status === "todo")} 
-            onEdit={handleEditTask} 
-            onDelete={handleDeleteTask} 
-            columnId="column-todo"
-            columnIndex={0} 
-          />
-          <KanbanColumn 
-            title="In Progress" 
-            tasks={tasks.filter(t => t.status === "in-progress")} 
-            onEdit={handleEditTask} 
-            onDelete={handleDeleteTask} 
-            columnId="column-in-progress"
-            columnIndex={1} 
-          />
-          <KanbanColumn 
-            title="In Review" 
-            tasks={tasks.filter(t => t.status === "in-review")} 
-            onEdit={handleEditTask} 
-            onDelete={handleDeleteTask} 
-            columnId="column-in-review" 
-            columnIndex={2}
-          />
-          <KanbanColumn 
-            title="Done" 
-            tasks={tasks.filter(t => t.status === "done")} 
-            onEdit={handleEditTask} 
-            onDelete={handleDeleteTask} 
-            columnId="column-done" 
-            columnIndex={3}
-          />
+          <DroppableColumn id="column-todo">
+            <KanbanColumn 
+              title="To Do" 
+              tasks={tasks.filter(t => t.status === "todo")} 
+              onEdit={handleEditTask} 
+              onDelete={handleDeleteTask} 
+              columnId="column-todo"
+              columnIndex={0} 
+            />
+          </DroppableColumn>
+          
+          <DroppableColumn id="column-in-progress">
+            <KanbanColumn 
+              title="In Progress" 
+              tasks={tasks.filter(t => t.status === "in-progress")} 
+              onEdit={handleEditTask} 
+              onDelete={handleDeleteTask} 
+              columnId="column-in-progress"
+              columnIndex={1} 
+            />
+          </DroppableColumn>
+          
+          <DroppableColumn id="column-in-review">
+            <KanbanColumn 
+              title="In Review" 
+              tasks={tasks.filter(t => t.status === "in-review")} 
+              onEdit={handleEditTask} 
+              onDelete={handleDeleteTask} 
+              columnId="column-in-review" 
+              columnIndex={2}
+            />
+          </DroppableColumn>
+          
+          <DroppableColumn id="column-done">
+            <KanbanColumn 
+              title="Done" 
+              tasks={tasks.filter(t => t.status === "done")} 
+              onEdit={handleEditTask} 
+              onDelete={handleDeleteTask} 
+              columnId="column-done" 
+              columnIndex={3}
+            />
+          </DroppableColumn>
         </div>
+
 
         <DragOverlay>
           {activeTask && (

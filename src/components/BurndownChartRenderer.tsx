@@ -97,7 +97,7 @@ const BurndownChartRenderer = ({
           />
           <ReferenceLine y={0} stroke="#e5e7eb" />
           
-          {/* Bar for remaining story points */}
+          {/* Bar for remaining story points 
           <Bar
             dataKey="remaining"
             fill="var(--color-remaining)"
@@ -106,7 +106,7 @@ const BurndownChartRenderer = ({
             name="remaining"
             animationDuration={800}
             isAnimationActive={true}
-          />
+          /> */}
           
           {/* Ideal burndown line (dashed) */}
           <Line
