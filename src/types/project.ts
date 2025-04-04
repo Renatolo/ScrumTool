@@ -19,3 +19,11 @@ export interface Meeting {
     updated_at: string;
     description?: string;
 }
+
+export interface MeetingNote {
+    id: string;
+    meeting_id: string;
+    content: string;
+    created_at: string;
+    created_by: string;
+}

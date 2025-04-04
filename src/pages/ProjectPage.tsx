@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { Project } from "@/types/project";
@@ -167,7 +166,7 @@ const ProjectPage = () => {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="overview">
             <LineChart className="h-4 w-4 mr-2" />
             Overview
@@ -179,6 +178,10 @@ const ProjectPage = () => {
           <TabsTrigger value="backlog">
             <ListChecks className="h-4 w-4 mr-2" />
             Product Backlog
+          </TabsTrigger>
+          <TabsTrigger value="meetings">
+            <Calendar className="h-4 w-4 mr-2" />
+            Meetings
           </TabsTrigger>
           <TabsTrigger value="team">
             <Users className="h-4 w-4 mr-2" />
@@ -240,6 +243,11 @@ const ProjectPage = () => {
             onRefresh={refreshProject}
             activeSprint={activeSprint}
           />
+        </TabsContent>
+
+        {/* New Meetings Tab */}
+        <TabsContent value="meetings" className="mt-6">
+          <MeetingsList projectId={projectId!} isTab={true} />
         </TabsContent>
 
         {/* Team Tab */}

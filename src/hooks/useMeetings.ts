@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Meeting } from "@/types/project";
 import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
 
 export const useMeetings = (projectId: string) => {
   const { user } = useAuth();
@@ -45,6 +46,25 @@ export const useMeetings = (projectId: string) => {
     if (!user) return;
     
     try {
+      // First check if there are any notes for this meeting
+      const { data: notes, error: notesError } = await supabase
+        .from("meeting_notes")
+        .select("id")
+        .eq("meeting_id", meetingId);
+        
+      if (notesError) throw notesError;
+      
+      // If there are notes, delete them first
+      if (notes && notes.length > 0) {
+        const { error: deleteNotesError } = await supabase
+          .from("meeting_notes")
+          .delete()
+          .eq("meeting_id", meetingId);
+          
+        if (deleteNotesError) throw deleteNotesError;
+      }
+      
+      // Then delete the meeting
       const { error } = await supabase
         .from("meetings")
         .delete()
@@ -71,6 +91,11 @@ export const useMeetings = (projectId: string) => {
     setRefreshTrigger(prev => prev + 1);
   };
 
+  // Format meeting date for display
+  const formatMeetingDate = (date: string) => {
+    return format(new Date(date), "PPP 'at' p");
+  };
+
   // Separate meetings into upcoming and past
   const now = new Date();
   const upcomingMeetings = meetings
@@ -86,6 +111,7 @@ export const useMeetings = (projectId: string) => {
     upcomingMeetings,
     pastMeetings,
     deleteMeeting,
-    refreshMeetings
+    refreshMeetings,
+    formatMeetingDate
   };
 };

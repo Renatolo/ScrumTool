@@ -1,7 +1,7 @@
 
 import React from "react";
 import { format } from "date-fns";
-import { Calendar, Edit, Trash2 } from "lucide-react";
+import { Calendar, Edit, Trash2, Eye } from "lucide-react";
 import { Meeting } from "@/types/project";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,10 +10,19 @@ interface MeetingCardProps {
   meeting: Meeting;
   onEdit: (meeting: Meeting) => void;
   onDelete: (meetingId: string) => void;
+  onView?: (meeting: Meeting) => void;
   isPast?: boolean;
+  showViewButton?: boolean;
 }
 
-const MeetingCard = ({ meeting, onEdit, onDelete, isPast = false }: MeetingCardProps) => {
+const MeetingCard = ({ 
+  meeting, 
+  onEdit, 
+  onDelete, 
+  onView, 
+  isPast = false,
+  showViewButton = false 
+}: MeetingCardProps) => {
   return (
     <Card key={meeting.id} className={isPast ? "opacity-90" : ""}>
       <CardHeader>
@@ -31,6 +40,16 @@ const MeetingCard = ({ meeting, onEdit, onDelete, isPast = false }: MeetingCardP
         )}
       </CardContent>
       <CardFooter className="flex justify-end gap-2">
+        {showViewButton && onView && (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => onView(meeting)}
+            className="bg-green-100 hover:bg-green-200"
+          >
+            <Eye className="h-4 w-4" />
+          </Button>
+        )}
         <Button 
           variant="outline" 
           size="sm" 
