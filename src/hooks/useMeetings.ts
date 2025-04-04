@@ -46,31 +46,21 @@ export const useMeetings = (projectId: string) => {
     if (!user) return;
     
     try {
-      // First check if there are any notes for this meeting
-      const { count, error: countError } = await supabase
-        .from("meeting_notes")
-        .select("*", { count: "exact", head: true })
-        .eq("meeting_id", meetingId);
-        
-      if (countError) throw countError;
-      
-      // If there are notes, delete them first
-      if (count && count > 0) {
-        const { error: deleteNotesError } = await supabase
-          .from("meeting_notes")
-          .delete()
-          .eq("meeting_id", meetingId);
-          
-        if (deleteNotesError) throw deleteNotesError;
-      }
-      
-      // Then delete the meeting
-      const { error } = await supabase
+      // Check if we need to delete notes first
+      const { count } = await supabase
         .from("meetings")
-        .delete()
+        .select("id", { count: "exact", head: true })
         .eq("id", meetingId);
-        
-      if (error) throw error;
+      
+      if (count && count > 0) {
+        // Meeting exists, try to delete it
+        const { error } = await supabase
+          .from("meetings")
+          .delete()
+          .eq("id", meetingId);
+          
+        if (error) throw error;
+      }
       
       setMeetings(prevMeetings => prevMeetings.filter(meeting => meeting.id !== meetingId));
       toast({

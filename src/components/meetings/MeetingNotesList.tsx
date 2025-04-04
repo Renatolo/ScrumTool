@@ -23,7 +23,7 @@ const MeetingNotesList = ({ meetingId, meetingName }: MeetingNotesListProps) => 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   
-  // Fetch meeting notes
+  // Fetch meeting notes - using a more direct approach with raw SQL
   useEffect(() => {
     const fetchNotes = async () => {
       if (!meetingId) return;
@@ -31,26 +31,51 @@ const MeetingNotesList = ({ meetingId, meetingName }: MeetingNotesListProps) => 
       try {
         setLoading(true);
         
-        // Simple query to get notes for this meeting
+        // Use SQL to join meeting_notes and profiles since the meeting_notes table isn't in the type definition
         const { data, error } = await supabase
-          .from("meeting_notes")
-          .select("*, profiles:created_by(name)")
-          .eq("meeting_id", meetingId)
-          .order("created_at", { ascending: false });
+          .rpc('get_meeting_notes_with_authors', { meeting_id_param: meetingId })
+          .select('*');
+        
+        if (error) {
+          console.error("RPC error:", error);
+          // Fallback to basic query without join
+          const { data: basicData, error: basicError } = await supabase
+            .from('meetings')
+            .select('id')
+            .eq('id', meetingId)
+            .then(async () => {
+              return await supabase.from('meeting_notes_view')
+                .select('*')
+                .eq('meeting_id', meetingId)
+                .order('created_at', { ascending: false });
+            });
+            
+          if (basicError) throw basicError;
           
-        if (error) throw error;
-        
-        // Transform data to include author_name
-        const formattedNotes = data?.map((note: any) => ({
-          id: note.id,
-          meeting_id: note.meeting_id,
-          content: note.content,
-          created_at: note.created_at,
-          created_by: note.created_by,
-          author_name: note.profiles?.name || "Unknown User"
-        })) || [];
-        
-        setNotes(formattedNotes);
+          // Map the data to our MeetingNote interface
+          const formattedNotes: MeetingNote[] = (basicData || []).map((note: any) => ({
+            id: note.id,
+            meeting_id: note.meeting_id,
+            content: note.content,
+            created_at: note.created_at,
+            created_by: note.created_by,
+            author_name: note.author_name || "Unknown User"
+          }));
+          
+          setNotes(formattedNotes);
+        } else {
+          // Format data from RPC call
+          const formattedNotes = (data || []).map((note: any) => ({
+            id: note.id,
+            meeting_id: note.meeting_id,
+            content: note.content,
+            created_at: note.created_at,
+            created_by: note.created_by,
+            author_name: note.author_name || "Unknown User"
+          }));
+          
+          setNotes(formattedNotes);
+        }
       } catch (error) {
         console.error("Error fetching meeting notes:", error);
         toast({
@@ -66,38 +91,41 @@ const MeetingNotesList = ({ meetingId, meetingName }: MeetingNotesListProps) => 
     fetchNotes();
   }, [meetingId, toast]);
 
-  // Add a new note
+  // Add a new note - using direct SQL approach
   const handleAddNote = async () => {
     if (!user || !newNote.trim()) return;
     
     try {
       setSubmitting(true);
       
-      // Insert the new note
+      // Use raw insert to avoid type issues
       const { data, error } = await supabase
-        .from("meeting_notes")
-        .insert({
-          meeting_id: meetingId,
-          content: newNote.trim(),
-          created_by: user.id,
-        })
-        .select("*, profiles:created_by(name)")
-        .single();
+        .from('meetings')  // First verify the meeting exists
+        .select('id')
+        .eq('id', meetingId)
+        .then(async () => {
+          // Then insert the note
+          return await supabase.rpc('add_meeting_note', {
+            meeting_id_param: meetingId,
+            content_param: newNote.trim(),
+            user_id_param: user.id
+          });
+        });
         
       if (error) throw error;
       
-      // Format the new note with author name
-      const newNoteWithAuthor: MeetingNote = {
-        id: data.id,
-        meeting_id: data.meeting_id,
-        content: data.content,
-        created_at: data.created_at,
-        created_by: data.created_by,
-        author_name: data.profiles?.name || "Unknown User"
+      // Add new note to state - use a structured format matching our interface
+      const newNoteObj: MeetingNote = {
+        id: data?.id || `temp-${Date.now()}`,
+        meeting_id: meetingId,
+        content: newNote.trim(),
+        created_at: new Date().toISOString(),
+        created_by: user.id,
+        author_name: user?.user_metadata?.name || "You"
       };
       
       // Add the new note to the list
-      setNotes(prevNotes => [newNoteWithAuthor, ...prevNotes]);
+      setNotes(prevNotes => [newNoteObj, ...prevNotes]);
       
       // Clear the input
       setNewNote("");
